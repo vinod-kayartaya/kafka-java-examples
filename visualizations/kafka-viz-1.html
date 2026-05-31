@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apache Kafka — Live Visualization</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Barlow+Condensed:wght@300;500;700;900&display=swap');
+
+  :root {
+    --bg: #090c10;
+    --surface: #0d1117;
+    --surface2: #161b22;
+    --border: #21262d;
+    --border2: #30363d;
+    --text: #e6edf3;
+    --muted: #7d8590;
+    --accent: #f0883e;
+    --accent2: #58a6ff;
+    --green: #3fb950;
+    --red: #f85149;
+    --purple: #d2a8ff;
+
+    --p0: #ff6b6b; --p1: #ffa96b; --p2: #ffd56b;
+    --p3: #a8ff6b; --p4: #6bffb8; --p5: #6bd4ff;
+    --p6: #6b8fff; --p7: #c46bff; --p8: #ff6bcf; --p9: #ff6b8a;
+
+    --broker1: #1c2a1e; --broker2: #1a2230; --broker3: #2a1c2a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── HEADER ─────────────────────────────── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .logo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .logo span { color: var(--text); font-weight: 300; }
+  .stats {
+    display: flex;
+    gap: 28px;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .stat-val { color: var(--green); font-weight: 700; font-size: 14px; display: block; }
+  .controls {
+    display: flex;
+    gap: 10px;
+  }
+  button {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 7px 16px;
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    cursor: pointer;
+    background: var(--surface2);
+    color: var(--text);
+    transition: all 0.15s;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+  button.primary:hover { background: #ffaa60; }
+  button.danger { border-color: var(--red); color: var(--red); }
+  button.danger:hover { background: var(--red); color: #fff; }
+
+  /* ── MAIN CANVAS AREA ────────────────────── */
+  .canvas {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 130px 1fr 1fr 1fr 1fr 1fr 140px;
+    gap: 0;
+    padding: 20px 16px;
+    position: relative;
+    min-height: 580px;
+    align-items: stretch;
+  }
+
+  /* ── SECTION LABELS ─────────────────────── */
+  .section-label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: center;
+    margin-bottom: 8px;
+  }
+
+  /* ── COLUMN ─────────────────────────────── */
+  .col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+  }
+
+  /* ── PRODUCERS ──────────────────────────── */
+  .producers-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding-top: 24px;
+  }
+  .producer {
+    width: 100px;
+    height: 38px;
+    border: 1.5px solid;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 10px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    position: relative;
+    background: rgba(0,0,0,0.3);
+    cursor: default;
+    transition: transform 0.1s;
+    flex-shrink: 0;
+  }
+  .producer.sending { transform: scale(1.04); }
+  .producer-id { font-size: 9px; opacity: 0.7; }
+  .producer-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  /* ── CLUSTER BOX ────────────────────────── */
+  .cluster-wrapper {
+    grid-column: 2 / 6;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  .cluster-box {
+    border: 1.5px solid var(--border2);
+    border-radius: 6px;
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    padding: 8px;
+    background: rgba(13,17,23,0.8);
+    position: relative;
+  }
+  .cluster-label {
+    position: absolute;
+    top: -11px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg);
+    padding: 0 8px;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  /* ── BROKERS ────────────────────────────── */
+  .broker {
+    border: 1.5px solid var(--border);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+  .broker-header {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 5px 8px;
+    background: rgba(255,255,255,0.04);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .broker-led {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+  }
+  .broker-body {
+    flex: 1;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  /* ── TOPIC + PARTITIONS ─────────────────── */
+  .topic-header {
+    font-size: 8px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--purple);
+    padding: 2px 0;
+    text-align: center;
+    border-bottom: 1px dashed rgba(210,168,255,0.2);
+    margin-bottom: 4px;
+  }
+  .partition {
+    border: 1px solid;
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+    min-height: 52px;
+  }
+  .partition-header {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 2px 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .partition-body {
+    padding: 3px 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .replica-row {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+  }
+  .replica-label { font-size: 7px; color: var(--muted); width: 20px; flex-shrink: 0; }
+  .replica {
+    flex: 1;
+    height: 12px;
+    border-radius: 2px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04);
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0 2px;
+  }
+  .replica.leader {
+    border-color: rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.06);
+  }
+  .replica-msg {
+    width: 8px; height: 8px;
+    border-radius: 1px;
+    flex-shrink: 0;
+    font-size: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(0,0,0,0.8);
+    font-weight: 700;
+  }
+
+  /* ── CONSUMERS ──────────────────────────── */
+  .consumers-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding-top: 24px;
+  }
+  .consumer-group-box {
+    border: 1.5px dashed var(--border2);
+    border-radius: 5px;
+    padding: 6px;
+    width: 118px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: relative;
+  }
+  .group-label {
+    font-size: 8px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--accent2);
+    text-align: center;
+    margin-bottom: 2px;
+  }
+  .consumer, .ind-consumer {
+    width: 108px;
+    height: 38px;
+    border: 1.5px solid;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 9px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    position: relative;
+    background: rgba(0,0,0,0.3);
+    transition: transform 0.1s;
+    flex-shrink: 0;
+  }
+  .ind-consumer { width: 118px; }
+  .consumer.receiving, .ind-consumer.receiving { transform: scale(1.04); }
+  .consumer-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+  }
+  .consumer-count {
+    font-size: 9px;
+    opacity: 0.8;
+    font-weight: 700;
+  }
+
+  /* ── FLYING ENVELOPES ───────────────────── */
+  #envelope-layer {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 100;
+  }
+  .envelope {
+    position: absolute;
+    width: 22px; height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    font-weight: 800;
+    color: rgba(0,0,0,0.9);
+    border-radius: 2px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    will-change: transform, opacity;
+    pointer-events: none;
+  }
+  /* Envelope flap SVG overlay */
+  .envelope::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 50%;
+    background: rgba(255,255,255,0.2);
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+    pointer-events: none;
+  }
+
+  /* ── LOG PANEL ──────────────────────────── */
+  .log-panel {
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    padding: 8px 20px;
+    height: 100px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column-reverse;
+    flex-shrink: 0;
+  }
+  .log-panel::-webkit-scrollbar { width: 4px; }
+  .log-panel::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+  .log-line {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    line-height: 1.8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .log-line span { font-weight: 600; }
+
+  /* ── LEGEND ─────────────────────────────── */
+  .legend {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 6px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-swatch { width: 12px; height: 10px; border-radius: 1px; border: 1px solid rgba(255,255,255,0.15); }
+  .legend-dashed { border: 1px dashed var(--border2); background: none !important; }
+
+  /* ── PARTITION COLORS ───────────────────── */
+  .p0 { border-color: rgba(88, 166, 255, 0.5); }
+  .p0 .partition-header { background: rgba(88, 166, 255, 0.12); color: var(--accent2); }
+  .p1 { border-color: rgba(63, 185, 80, 0.5); }
+  .p1 .partition-header { background: rgba(63, 185, 80, 0.12); color: var(--green); }
+  .p2 { border-color: rgba(240, 136, 62, 0.5); }
+  .p2 .partition-header { background: rgba(240, 136, 62, 0.12); color: var(--accent); }
+
+  /* ── BROKER ACCENTS ─────────────────────── */
+  .broker-1 { border-color: rgba(88, 166, 255, 0.3); }
+  .broker-1 .broker-header { background: rgba(88, 166, 255, 0.06); color: var(--accent2); }
+  .broker-2 { border-color: rgba(63, 185, 80, 0.3); }
+  .broker-2 .broker-header { background: rgba(63, 185, 80, 0.06); color: var(--green); }
+  .broker-3 { border-color: rgba(210, 168, 255, 0.3); }
+  .broker-3 .broker-header { background: rgba(210, 168, 255, 0.06); color: var(--purple); }
+
+  /* ── CONSUMER COLORS ────────────────────── */
+  .consumer-1 { border-color: rgba(88, 166, 255, 0.5); color: var(--accent2); }
+  .consumer-1 .consumer-dot { background: var(--accent2); box-shadow: 0 0 5px var(--accent2); }
+  .consumer-2 { border-color: rgba(63, 185, 80, 0.5); color: var(--green); }
+  .consumer-2 .consumer-dot { background: var(--green); box-shadow: 0 0 5px var(--green); }
+  .ind-consumer-style { border-color: rgba(240, 136, 62, 0.5); color: var(--accent); }
+  .ind-consumer-style .consumer-dot { background: var(--accent); box-shadow: 0 0 5px var(--accent); }
+
+  /* ── SPEED CONTROL ──────────────────────── */
+  .speed-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    color: var(--muted);
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 80px;
+    height: 3px;
+    background: var(--border2);
+    border-radius: 2px;
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 4px currentColor; }
+    50% { opacity: 0.4; box-shadow: none; }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .arrows-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .grid-line {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 1px;
+    background: linear-gradient(to bottom, transparent, rgba(48,54,61,0.4) 20%, rgba(48,54,61,0.4) 80%, transparent);
+    pointer-events: none;
+  }
+
+  .offset-badge {
+    font-size: 7px;
+    color: var(--muted);
+    margin-left: auto;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">Apache <span>Kafka</span> Visualizer</div>
+  <div class="stats">
+    <div>
+      <span class="stat-val" id="total-msgs">0</span>
+      Messages
+    </div>
+    <div>
+      <span class="stat-val" id="total-rate">0</span>
+      Msg/sec
+    </div>
+    <div>
+      <span class="stat-val" id="inflight">0</span>
+      In-flight
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:16px;">
+    <div class="speed-group">
+      Speed
+      <input type="range" id="speed" min="1" max="5" value="3">
+      <span id="speed-label">3x</span>
+    </div>
+    <div class="controls">
+      <button class="primary" id="btn-play" onclick="togglePlay()">⏸ Pause</button>
+      <button class="danger" onclick="resetAll()">↺ Reset</button>
+    </div>
+  </div>
+</header>
+
+<!-- MAIN CANVAS -->
+<div class="canvas" id="main-canvas">
+
+  <!-- PRODUCERS -->
+  <div class="col producers-col" id="producers-col">
+    <div class="section-label">Producers</div>
+  </div>
+
+  <!-- CLUSTER (brokers + partitions) -->
+  <div class="cluster-wrapper" style="grid-column:2/6; position:relative; display:flex; flex-direction:column;">
+    <div class="section-label">Kafka Cluster</div>
+    <div class="cluster-box" id="cluster-box">
+      <div class="cluster-label">kafka-cluster-01</div>
+      <!-- Brokers injected by JS -->
+    </div>
+  </div>
+
+  <!-- CONSUMERS -->
+  <div class="col consumers-col" id="consumers-col">
+    <div class="section-label">Consumers</div>
+  </div>
+
+</div>
+
+<!-- ENVELOPE FLIGHT LAYER -->
+<div id="envelope-layer"></div>
+
+<!-- LEGEND -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-swatch" style="background:#ff6b6b"></div>P0</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#ffa96b"></div>P1</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#ffd56b"></div>P2</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#a8ff6b"></div>P3</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#6bffb8"></div>P4</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#6bd4ff"></div>P5</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#6b8fff"></div>P6</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#c46bff"></div>P7</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#ff6bcf"></div>P8</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#ff6b8a"></div>P9</div>
+  <div style="flex:1"></div>
+  <div class="legend-item"><div class="legend-swatch" style="background:rgba(255,255,255,0.15)"></div>Follower Replica</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:rgba(255,255,255,0.28)"></div>Leader Replica</div>
+  <div class="legend-item"><div class="legend-swatch legend-dashed"></div>Consumer Group</div>
+</div>
+
+<!-- LOG PANEL -->
+<div class="log-panel" id="log-panel"></div>
+
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
+const PRODUCER_COLORS = [
+  '#ff6b6b','#ffa96b','#ffd56b','#a8ff6b','#6bffb8',
+  '#6bd4ff','#6b8fff','#c46bff','#ff6bcf','#ff6b8a'
+];
+const NUM_PRODUCERS = 10;
+const NUM_BROKERS = 3;
+const NUM_PARTITIONS = 3;
+const NUM_REPLICAS = 3;
+
+let totalMsgs = 0;
+let inFlight = 0;
+let recentMsgs = [];
+let isPlaying = true;
+let mainInterval = null;
+let partitionOffsets = [[0,0,0],[0,0,0],[0,0,0]]; // [broker][partition]
+let consumerOffsets = [0, 0, 0]; // consumer0, consumer1, indConsumer
+let partitionQueues = [[],[],[]]; // queued messages per partition (colour)
+let consumerMsgCounts = [0, 0, 0];
+let speedFactor = 3;
+
+// ─── BUILD DOM ────────────────────────────────────────────────────────────────
+function buildProducers() {
+  const col = document.getElementById('producers-col');
+  for (let i = 0; i < NUM_PRODUCERS; i++) {
+    const el = document.createElement('div');
+    el.className = 'producer';
+    el.id = `producer-${i}`;
+    el.style.borderColor = PRODUCER_COLORS[i];
+    el.style.color = PRODUCER_COLORS[i];
+    el.innerHTML = `
+      <div>
+        <div style="font-size:9px;opacity:0.6">P${i}</div>
+        <div style="font-size:10px;">prod-${i}</div>
+      </div>
+      <div class="producer-dot" style="background:${PRODUCER_COLORS[i]};box-shadow:0 0 6px ${PRODUCER_COLORS[i]}"></div>
+    `;
+    col.appendChild(el);
+  }
+}
+
+function buildCluster() {
+  const box = document.getElementById('cluster-box');
+  // partition colors: 0=blue, 1=green, 2=orange
+  const pColors = [
+    {border:'rgba(88,166,255,0.5)', hbg:'rgba(88,166,255,0.12)', hlabel:'#58a6ff', name:'P-0'},
+    {border:'rgba(63,185,80,0.5)',  hbg:'rgba(63,185,80,0.12)',  hlabel:'#3fb950', name:'P-1'},
+    {border:'rgba(240,136,62,0.5)', hbg:'rgba(240,136,62,0.12)', hlabel:'#f0883e', name:'P-2'},
+  ];
+  const bColors = [
+    {border:'rgba(88,166,255,0.3)', hbg:'rgba(88,166,255,0.06)', hlabel:'#58a6ff'},
+    {border:'rgba(63,185,80,0.3)',  hbg:'rgba(63,185,80,0.06)',  hlabel:'#3fb950'},
+    {border:'rgba(210,168,255,0.3)',hbg:'rgba(210,168,255,0.06)',hlabel:'#d2a8ff'},
+  ];
+  for (let b = 0; b < NUM_BROKERS; b++) {
+    const bc = bColors[b];
+    const broker = document.createElement('div');
+    broker.className = `broker broker-${b+1}`;
+    broker.id = `broker-${b}`;
+    broker.style.borderColor = bc.border;
+    broker.innerHTML = `
+      <div class="broker-header" style="background:${bc.hbg};color:${bc.hlabel}">
+        BROKER ${b+1}
+        <div class="broker-led"></div>
+      </div>
+      <div class="broker-body">
+        <div class="topic-header">topic: events</div>
+        ${[0,1,2].map(p => `
+          <div class="partition p${p}" id="broker-${b}-part-${p}" style="border-color:${pColors[p].border}">
+            <div class="partition-header" style="background:${pColors[p].hbg};color:${pColors[p].hlabel}">
+              <span>PART ${p}</span>
+              <span class="offset-badge" id="offset-b${b}-p${p}">off:0</span>
+            </div>
+            <div class="partition-body">
+              ${[0,1,2].map(r => `
+                <div class="replica-row">
+                  <span class="replica-label">${r===0?'L:':'R'+r+':'}</span>
+                  <div class="replica ${r===0?'leader':''}" id="replica-b${b}-p${p}-r${r}"></div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    box.appendChild(broker);
+  }
+}
+
+function buildConsumers() {
+  const col = document.getElementById('consumers-col');
+
+  // Consumer Group
+  const grpBox = document.createElement('div');
+  grpBox.className = 'consumer-group-box';
+  grpBox.innerHTML = `<div class="group-label">Consumer Group</div>`;
+
+  const c0 = document.createElement('div');
+  c0.className = 'consumer consumer-1';
+  c0.id = 'consumer-0';
+  c0.innerHTML = `
+    <div>
+      <div style="font-size:9px;opacity:0.6">GRP</div>
+      <div style="font-size:10px;">consumer-0</div>
+    </div>
+    <span class="consumer-count" id="ccount-0">0</span>
+    <div class="consumer-dot"></div>
+  `;
+  const c1 = document.createElement('div');
+  c1.className = 'consumer consumer-2';
+  c1.id = 'consumer-1';
+  c1.innerHTML = `
+    <div>
+      <div style="font-size:9px;opacity:0.6">GRP</div>
+      <div style="font-size:10px;">consumer-1</div>
+    </div>
+    <span class="consumer-count" id="ccount-1">0</span>
+    <div class="consumer-dot"></div>
+  `;
+  grpBox.appendChild(c0);
+  grpBox.appendChild(c1);
+  col.appendChild(grpBox);
+
+  // Independent consumer
+  const indBox = document.createElement('div');
+  indBox.style.marginTop = '10px';
+  const indLabel = document.createElement('div');
+  indLabel.className = 'section-label';
+  indLabel.textContent = 'Independent';
+  col.appendChild(indLabel);
+
+  const cInd = document.createElement('div');
+  cInd.className = 'ind-consumer ind-consumer-style';
+  cInd.id = 'consumer-ind';
+  cInd.innerHTML = `
+    <div>
+      <div style="font-size:9px;opacity:0.6">IND</div>
+      <div style="font-size:10px;">analytics</div>
+    </div>
+    <span class="consumer-count" id="ccount-2">0</span>
+    <div class="consumer-dot"></div>
+  `;
+  col.appendChild(cInd);
+}
+
+// ─── ANIMATION ────────────────────────────────────────────────────────────────
+function getCenter(el) {
+  const r = el.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}
+
+function spawnEnvelope(fromEl, toEl, color, label, onArrive) {
+  const layer = document.getElementById('envelope-layer');
+  const env = document.createElement('div');
+  env.className = 'envelope';
+  env.textContent = label;
+  env.style.background = color;
+  env.style.color = 'rgba(0,0,0,0.85)';
+  layer.appendChild(env);
+
+  const from = getCenter(fromEl);
+  const to = getCenter(toEl);
+
+  // Add slight arc
+  const midX = (from.x + to.x) / 2;
+  const midY = (from.y + to.y) / 2 - 18;
+
+  env.style.left = (from.x - 11) + 'px';
+  env.style.top  = (from.y - 8) + 'px';
+  env.style.opacity = '1';
+
+  const duration = Math.max(300, 900 / speedFactor);
+  const start = performance.now();
+
+  inFlight++;
+  updateStats();
+
+  function tick(now) {
+    const t = Math.min((now - start) / duration, 1);
+    // Quadratic bezier
+    const mt = 1 - t;
+    const x = mt*mt*from.x + 2*mt*t*midX + t*t*to.x;
+    const y = mt*mt*from.y + 2*mt*t*midY + t*t*to.y;
+    env.style.left = (x - 11) + 'px';
+    env.style.top  = (y - 8) + 'px';
+    if (t < 0.85) {
+      env.style.opacity = '1';
+    } else {
+      env.style.opacity = String(1 - (t - 0.85) / 0.15);
+    }
+    if (t < 1) {
+      requestAnimationFrame(tick);
+    } else {
+      env.remove();
+      inFlight--;
+      updateStats();
+      if (onArrive) onArrive();
+    }
+  }
+  requestAnimationFrame(tick);
+}
+
+// ─── MESSAGE FLOW ─────────────────────────────────────────────────────────────
+function sendMessage() {
+  const producerIdx = Math.floor(Math.random() * NUM_PRODUCERS);
+  const partition   = Math.floor(Math.random() * NUM_PARTITIONS);
+  const color = PRODUCER_COLORS[producerIdx];
+  const label = String(producerIdx);
+  const leaderBroker = partition; // simple: partition P maps to broker P as leader
+
+  const prodEl = document.getElementById(`producer-${producerIdx}`);
+  const brokerEl = document.getElementById(`broker-${leaderBroker}`);
+
+  // Flash producer
+  prodEl.classList.add('sending');
+  setTimeout(() => prodEl.classList.remove('sending'), 150);
+
+  // Step 1: Producer → Leader Broker
+  spawnEnvelope(prodEl, brokerEl, color, label, () => {
+    // Write to leader replica
+    addToReplica(leaderBroker, partition, 0, color, label);
+    updateOffset(leaderBroker, partition);
+    totalMsgs++;
+    updateStats();
+    partitionQueues[partition].push({ color, label });
+    log(`Producer-${producerIdx} → Broker-${leaderBroker+1} (Leader, Partition ${partition})`, color);
+
+    // Step 2: Replicate to follower brokers
+    const followers = [0,1,2].filter(b => b !== leaderBroker);
+    followers.forEach((fb, fi) => {
+      const followerEl = document.getElementById(`broker-${fb}`);
+      setTimeout(() => {
+        spawnEnvelope(brokerEl, followerEl, color, label, () => {
+          const replicaIdx = fi + 1;
+          addToReplica(fb, partition, replicaIdx, color, label);
+          updateOffset(fb, partition);
+          log(`Broker-${leaderBroker+1} → Broker-${fb+1} (Replica ${replicaIdx}, Partition ${partition})`, color);
+        });
+      }, fi * (120 / speedFactor));
+    });
+
+    // Step 3: Deliver to consumers (after replication)
+    setTimeout(() => deliverToConsumers(partition, color, label), 400 / speedFactor);
+  });
+}
+
+function deliverToConsumers(partition, color, label) {
+  // Consumer group: partition 0→c0, partition 1→c1, partition 2→c0 (round-robin)
+  const groupMap = { 0: 0, 1: 1, 2: 0 };
+  const groupConsumerIdx = groupMap[partition];
+  const groupConsumerEl = document.getElementById(`consumer-${groupConsumerIdx}`);
+  const indConsumerEl = document.getElementById('consumer-ind');
+  const leaderBroker = partition;
+  const brokerEl = document.getElementById(`broker-${leaderBroker}`);
+
+  // Group consumer
+  spawnEnvelope(brokerEl, groupConsumerEl, color, label, () => {
+    groupConsumerEl.classList.add('receiving');
+    setTimeout(() => groupConsumerEl.classList.remove('receiving'), 200);
+    consumerMsgCounts[groupConsumerIdx]++;
+    document.getElementById(`ccount-${groupConsumerIdx}`).textContent = consumerMsgCounts[groupConsumerIdx];
+    log(`Partition-${partition} → consumer-${groupConsumerIdx} (Group)`, color);
+  });
+
+  // Independent consumer (slight delay)
+  setTimeout(() => {
+    spawnEnvelope(brokerEl, indConsumerEl, color, label, () => {
+      indConsumerEl.classList.add('receiving');
+      setTimeout(() => indConsumerEl.classList.remove('receiving'), 200);
+      consumerMsgCounts[2]++;
+      document.getElementById('ccount-2').textContent = consumerMsgCounts[2];
+      log(`Partition-${partition} → analytics (Independent)`, color);
+    });
+  }, 80 / speedFactor);
+}
+
+function addToReplica(broker, partition, replica, color, label) {
+  const replicaEl = document.getElementById(`replica-b${broker}-p${partition}-r${replica}`);
+  if (!replicaEl) return;
+  // Keep max 6 msg dots
+  const dots = replicaEl.querySelectorAll('.replica-msg');
+  if (dots.length >= 6) dots[0].remove();
+  const dot = document.createElement('div');
+  dot.className = 'replica-msg';
+  dot.style.background = color;
+  dot.textContent = label;
+  replicaEl.appendChild(dot);
+}
+
+function updateOffset(broker, partition) {
+  partitionOffsets[broker][partition]++;
+  const el = document.getElementById(`offset-b${broker}-p${partition}`);
+  if (el) el.textContent = `off:${partitionOffsets[broker][partition]}`;
+}
+
+// ─── STATS & LOG ──────────────────────────────────────────────────────────────
+function updateStats() {
+  document.getElementById('total-msgs').textContent = totalMsgs;
+  document.getElementById('inflight').textContent = inFlight;
+}
+
+const rateHistory = [];
+function updateRate() {
+  const now = Date.now();
+  rateHistory.push(now);
+  while (rateHistory.length && now - rateHistory[0] > 1000) rateHistory.shift();
+  document.getElementById('total-rate').textContent = rateHistory.length;
+}
+
+function log(msg, color) {
+  updateRate();
+  const panel = document.getElementById('log-panel');
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  const ts = new Date().toISOString().slice(11,23);
+  line.innerHTML = `<span style="color:${color}">[${ts}]</span> ${msg}`;
+  panel.prepend(line);
+  // Trim log
+  const lines = panel.querySelectorAll('.log-line');
+  if (lines.length > 80) lines[lines.length-1].remove();
+}
+
+// ─── MAIN LOOP ────────────────────────────────────────────────────────────────
+function startLoop() {
+  if (mainInterval) clearInterval(mainInterval);
+  const delay = Math.max(150, 600 / speedFactor);
+  mainInterval = setInterval(() => {
+    if (isPlaying) {
+      const burst = Math.floor(Math.random() * 2) + 1;
+      for (let i = 0; i < burst; i++) {
+        setTimeout(sendMessage, i * (80 / speedFactor));
+      }
+    }
+  }, delay);
+}
+
+function togglePlay() {
+  isPlaying = !isPlaying;
+  const btn = document.getElementById('btn-play');
+  btn.textContent = isPlaying ? '⏸ Pause' : '▶ Play';
+}
+
+function resetAll() {
+  totalMsgs = 0; inFlight = 0;
+  consumerMsgCounts = [0, 0, 0];
+  partitionOffsets = [[0,0,0],[0,0,0],[0,0,0]];
+  partitionQueues = [[],[],[]];
+  rateHistory.length = 0;
+  updateStats();
+  [0,1,2].forEach(i => {
+    document.getElementById(`ccount-${i}`).textContent = 0;
+  });
+  // Clear replicas
+  document.querySelectorAll('.replica').forEach(r => r.innerHTML = '');
+  document.querySelectorAll('[id^="offset-b"]').forEach(el => {
+    el.textContent = 'off:0';
+  });
+  // Clear log
+  document.getElementById('log-panel').innerHTML = '';
+  // Clear envelopes
+  document.getElementById('envelope-layer').innerHTML = '';
+  log('System reset.', '#7d8590');
+}
+
+// Speed control
+document.getElementById('speed').addEventListener('input', function() {
+  speedFactor = +this.value;
+  document.getElementById('speed-label').textContent = speedFactor + 'x';
+  startLoop();
+});
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+buildProducers();
+buildCluster();
+buildConsumers();
+startLoop();
+log('Kafka cluster started. 3 brokers, 3 partitions, 3 replicas.', '#3fb950');
+log('Consumer group with 2 members online. Independent consumer online.', '#58a6ff');
+</script>
+</body>
+</html>

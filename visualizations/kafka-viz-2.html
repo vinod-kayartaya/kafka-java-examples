@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apache Kafka — Interactive</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Barlow+Condensed:wght@300;500;700;900&display=swap');
+
+  :root {
+    --bg: #090c10;
+    --surface: #0d1117;
+    --surface2: #161b22;
+    --border: #21262d;
+    --border2: #30363d;
+    --text: #e6edf3;
+    --muted: #7d8590;
+    --accent: #f0883e;
+    --accent2: #58a6ff;
+    --green: #3fb950;
+    --red: #f85149;
+    --purple: #d2a8ff;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── HEADER ─────────────────────────────── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .logo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .logo span { color: var(--text); font-weight: 300; }
+  .logo-sub { font-size: 9px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; margin-top: 1px; }
+
+  .stats {
+    display: flex;
+    gap: 24px;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    text-align: center;
+  }
+  .stat-val { color: var(--green); font-weight: 700; font-size: 18px; display: block; line-height: 1; margin-bottom: 2px; }
+
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .hint {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    border: 1px dashed var(--border2);
+    padding: 5px 10px;
+    border-radius: 3px;
+  }
+  .hint span { color: var(--accent); }
+
+  /* ── RESET BTN ─────────────────────────── */
+  .reset-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 7px 14px;
+    border: 1px solid var(--red);
+    border-radius: 4px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--red);
+    transition: all 0.15s;
+  }
+  .reset-btn:hover { background: var(--red); color: #fff; }
+
+  /* ── MAIN LAYOUT ─────────────────────────── */
+  .main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 148px 1fr 160px;
+    gap: 0;
+    padding: 18px 16px 10px;
+    position: relative;
+    min-height: 0;
+  }
+
+  /* ── SECTION LABELS ─────────────────────── */
+  .section-label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: center;
+    margin-bottom: 8px;
+  }
+
+  /* ── PRODUCERS ──────────────────────────── */
+  .producers-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .producer-btn {
+    width: 130px;
+    height: 40px;
+    border: 1.5px solid;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    background: rgba(0,0,0,0.35);
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.15s, background 0.15s;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+    text-align: left;
+  }
+  .producer-btn:hover {
+    box-shadow: 0 0 12px -2px currentColor;
+    background: rgba(255,255,255,0.05);
+    transform: scale(1.03);
+  }
+  .producer-btn:active {
+    transform: scale(0.97);
+  }
+  .producer-btn.sending {
+    transform: scale(1.05);
+    box-shadow: 0 0 18px -2px currentColor;
+  }
+  .producer-btn::after {
+    content: '▶ SEND';
+    position: absolute;
+    right: 8px;
+    font-size: 8px;
+    opacity: 0;
+    letter-spacing: 1px;
+    transition: opacity 0.15s;
+  }
+  .producer-btn:hover::after { opacity: 0.6; }
+
+  .prod-info { display: flex; flex-direction: column; gap: 1px; }
+  .prod-id { font-size: 8px; opacity: 0.55; font-weight: 400; }
+  .prod-name { font-size: 10px; }
+  .producer-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-right: 20px;
+    animation: pulse 2.5s infinite;
+  }
+
+  /* ── CLUSTER AREA ────────────────────────── */
+  .cluster-area {
+    display: flex;
+    flex-direction: column;
+    padding: 0 12px;
+  }
+  .cluster-box {
+    border: 1.5px solid var(--border2);
+    border-radius: 6px;
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    padding: 10px 8px 8px;
+    background: rgba(13,17,23,0.85);
+    position: relative;
+  }
+  .cluster-label {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg);
+    padding: 0 10px;
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  /* ── BROKERS ────────────────────────────── */
+  .broker {
+    border: 1.5px solid var(--border);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .broker-header {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .broker-led {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 5px var(--green);
+  }
+  .broker-body {
+    flex: 1;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .topic-header {
+    font-size: 7px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--purple);
+    padding: 2px 0;
+    text-align: center;
+    border-bottom: 1px dashed rgba(210,168,255,0.2);
+    margin-bottom: 3px;
+  }
+
+  /* ── PARTITIONS ─────────────────────────── */
+  .partition {
+    border: 1px solid;
+    border-radius: 3px;
+    overflow: hidden;
+    min-height: 56px;
+  }
+  .partition-header {
+    font-size: 7px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 2px 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .partition-body {
+    padding: 3px 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .replica-row { display: flex; gap: 3px; align-items: center; }
+  .replica-label { font-size: 7px; color: var(--muted); width: 20px; flex-shrink: 0; }
+  .replica {
+    flex: 1;
+    height: 13px;
+    border-radius: 2px;
+    border: 1px solid rgba(255,255,255,0.07);
+    background: rgba(255,255,255,0.03);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0 2px;
+  }
+  .replica.leader {
+    border-color: rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.055);
+  }
+  .replica-msg {
+    width: 9px; height: 9px;
+    border-radius: 1px;
+    flex-shrink: 0;
+    font-size: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(0,0,0,0.85);
+    font-weight: 800;
+  }
+  .offset-badge { font-size: 7px; color: var(--muted); margin-left: auto; }
+
+  /* Partition colors */
+  .p0 { border-color: rgba(88,166,255,0.45); }
+  .p0 .partition-header { background: rgba(88,166,255,0.1); color: var(--accent2); }
+  .p1 { border-color: rgba(63,185,80,0.45); }
+  .p1 .partition-header { background: rgba(63,185,80,0.1); color: var(--green); }
+  .p2 { border-color: rgba(240,136,62,0.45); }
+  .p2 .partition-header { background: rgba(240,136,62,0.1); color: var(--accent); }
+
+  /* Broker accents */
+  .broker-1 { border-color: rgba(88,166,255,0.28); }
+  .broker-1 .broker-header { background: rgba(88,166,255,0.06); color: var(--accent2); }
+  .broker-2 { border-color: rgba(63,185,80,0.28); }
+  .broker-2 .broker-header { background: rgba(63,185,80,0.06); color: var(--green); }
+  .broker-3 { border-color: rgba(210,168,255,0.28); }
+  .broker-3 .broker-header { background: rgba(210,168,255,0.06); color: var(--purple); }
+
+  /* ── CONSUMERS ──────────────────────────── */
+  .consumers-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .consumer-group-box {
+    border: 1.5px dashed rgba(88,166,255,0.35);
+    border-radius: 5px;
+    padding: 7px;
+    width: 140px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    position: relative;
+    background: rgba(88,166,255,0.03);
+  }
+  .group-label {
+    font-size: 8px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--accent2);
+    text-align: center;
+    margin-bottom: 1px;
+  }
+  .consumer {
+    width: 124px;
+    height: 42px;
+    border: 1.5px solid;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 9px;
+    font-size: 10px;
+    font-weight: 600;
+    background: rgba(0,0,0,0.3);
+    transition: transform 0.1s, box-shadow 0.15s;
+    flex-shrink: 0;
+  }
+  .ind-consumer {
+    width: 140px;
+    height: 42px;
+    border: 1.5px solid;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 9px;
+    font-size: 10px;
+    font-weight: 600;
+    background: rgba(0,0,0,0.3);
+    transition: transform 0.1s, box-shadow 0.15s;
+    flex-shrink: 0;
+  }
+  .consumer.receiving, .ind-consumer.receiving {
+    transform: scale(1.04);
+    box-shadow: 0 0 14px -3px currentColor;
+  }
+  .consumer-1 { border-color: rgba(88,166,255,0.5); color: var(--accent2); }
+  .consumer-2 { border-color: rgba(63,185,80,0.5); color: var(--green); }
+  .ind-consumer-style { border-color: rgba(240,136,62,0.5); color: var(--accent); }
+  .consumer-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+  }
+  .consumer-count { font-size: 12px; font-weight: 700; }
+  .cinfo { display: flex; flex-direction: column; gap: 1px; }
+  .cinfo-sub { font-size: 7px; opacity: 0.55; font-weight: 400; }
+
+  /* partition assignment badges */
+  .assign-badge {
+    font-size: 7px;
+    padding: 1px 4px;
+    border-radius: 2px;
+    font-weight: 700;
+    margin-top: 2px;
+    display: inline-block;
+    opacity: 0.75;
+  }
+
+  /* ── SEND ALL BAR ────────────────────────── */
+  .send-all-bar {
+    flex-shrink: 0;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    justify-content: center;
+  }
+  .send-all-btn {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 17px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    padding: 10px 36px;
+    border: 2px solid var(--accent);
+    border-radius: 4px;
+    cursor: pointer;
+    background: linear-gradient(135deg, rgba(240,136,62,0.12), rgba(240,136,62,0.05));
+    color: var(--accent);
+    transition: all 0.18s;
+    position: relative;
+    overflow: hidden;
+  }
+  .send-all-btn:hover {
+    background: var(--accent);
+    color: #000;
+    box-shadow: 0 0 24px rgba(240,136,62,0.4);
+  }
+  .send-all-btn:active { transform: scale(0.97); }
+  .send-all-btn.firing {
+    background: var(--accent);
+    color: #000;
+    box-shadow: 0 0 30px rgba(240,136,62,0.5);
+  }
+  .send-all-desc {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    max-width: 220px;
+    line-height: 1.6;
+  }
+  .send-all-desc span { color: var(--text); }
+
+  /* ── LOG ─────────────────────────────────── */
+  .log-panel {
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    padding: 6px 20px;
+    height: 88px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column-reverse;
+    flex-shrink: 0;
+  }
+  .log-panel::-webkit-scrollbar { width: 3px; }
+  .log-panel::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+  .log-line {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.3px;
+    line-height: 1.75;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .log-line b { font-weight: 600; }
+
+  /* ── LEGEND ─────────────────────────────── */
+  .legend {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    font-size: 8px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 5px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+  .legend-item { display: flex; align-items: center; gap: 4px; }
+  .legend-swatch { width: 10px; height: 9px; border-radius: 1px; border: 1px solid rgba(255,255,255,0.12); }
+
+  /* ── FLYING ENVELOPES ───────────────────── */
+  #envelope-layer {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 200;
+  }
+  .envelope {
+    position: absolute;
+    width: 22px; height: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    font-weight: 800;
+    color: rgba(0,0,0,0.9);
+    border-radius: 2px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.6), 0 0 6px -1px currentColor;
+    pointer-events: none;
+    will-change: transform, opacity;
+  }
+  .envelope::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 48%;
+    background: rgba(255,255,255,0.22);
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+    pointer-events: none;
+    border-radius: 2px 2px 0 0;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+  @keyframes ripple {
+    0% { transform: scale(1); opacity: 0.6; }
+    100% { transform: scale(2.2); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div>
+    <div class="logo">Apache <span>Kafka</span></div>
+    <div class="logo-sub">Interactive Visualizer</div>
+  </div>
+  <div class="stats">
+    <div><span class="stat-val" id="total-msgs">0</span>Total Msgs</div>
+    <div><span class="stat-val" id="inflight">0</span>In-flight</div>
+    <div><span class="stat-val" id="ccount-0" style="color:var(--accent2)">0</span>Consumer-0</div>
+    <div><span class="stat-val" id="ccount-1" style="color:var(--green)">0</span>Consumer-1</div>
+    <div><span class="stat-val" id="ccount-2" style="color:var(--accent)">0</span>Analytics</div>
+  </div>
+  <div class="header-right">
+    <div class="hint">Click a <span>producer</span> to send a message</div>
+    <button class="reset-btn" onclick="resetAll()">↺ Reset</button>
+  </div>
+</header>
+
+<!-- MAIN -->
+<div class="main" id="main-canvas">
+
+  <!-- PRODUCERS -->
+  <div class="producers-col" id="producers-col">
+    <div class="section-label">Producers</div>
+  </div>
+
+  <!-- CLUSTER -->
+  <div class="cluster-area">
+    <div class="section-label">Kafka Cluster</div>
+    <div class="cluster-box" id="cluster-box">
+      <div class="cluster-label">kafka-cluster-01 &nbsp;|&nbsp; topic: events &nbsp;|&nbsp; 3 brokers · 3 partitions · RF=3</div>
+    </div>
+  </div>
+
+  <!-- CONSUMERS -->
+  <div class="consumers-col" id="consumers-col">
+    <div class="section-label">Consumers</div>
+  </div>
+
+</div>
+
+<!-- ENVELOPE LAYER -->
+<div id="envelope-layer"></div>
+
+<!-- SEND ALL BAR -->
+<div class="send-all-bar">
+  <div class="send-all-desc">
+    Fires <span>1 message from each producer</span> (10 total) simultaneously and shows all animations at once.
+  </div>
+  <button class="send-all-btn" id="send-all-btn" onclick="sendAll()">⚡ Send All</button>
+</div>
+
+<!-- LEGEND -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-swatch" style="background:#ff6b6b"></div>P0</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#ffa96b"></div>P1</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#ffd56b"></div>P2</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#a8ff6b"></div>P3</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#6bffb8"></div>P4</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#6bd4ff"></div>P5</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#6b8fff"></div>P6</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#c46bff"></div>P7</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#ff6bcf"></div>P8</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#ff6b8a"></div>P9</div>
+  <div style="flex:1"></div>
+  <div class="legend-item"><div class="legend-swatch" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.07)"></div>Follower</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2)"></div>Leader</div>
+  <div class="legend-item"><div class="legend-swatch" style="border:1px dashed rgba(88,166,255,0.35);background:rgba(88,166,255,0.03)"></div>Consumer Group</div>
+</div>
+
+<!-- LOG -->
+<div class="log-panel" id="log-panel"></div>
+
+<script>
+// ─── CONSTANTS ───────────────────────────────────────────────────────────────
+const PRODUCER_COLORS = [
+  '#ff6b6b','#ffa96b','#ffd56b','#a8ff6b','#6bffb8',
+  '#6bd4ff','#6b8fff','#c46bff','#ff6bcf','#ff6b8a'
+];
+const NUM_PRODUCERS = 10;
+
+// Round-robin: producer i → partition (i % 3)
+// partition → leader broker: same index
+// consumer group assignment: partition 0,2 → consumer-0; partition 1 → consumer-1
+
+let totalMsgs = 0;
+let inFlight = 0;
+let partitionOffsets = [[0,0,0],[0,0,0],[0,0,0]];
+let consumerMsgCounts = [0, 0, 0];
+
+// ─── BUILD DOM ────────────────────────────────────────────────────────────────
+function buildProducers() {
+  const col = document.getElementById('producers-col');
+  for (let i = 0; i < NUM_PRODUCERS; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'producer-btn';
+    btn.id = `producer-${i}`;
+    btn.style.borderColor = PRODUCER_COLORS[i];
+    btn.style.color = PRODUCER_COLORS[i];
+    const partition = i % 3;
+    btn.innerHTML = `
+      <div class="prod-info">
+        <span class="prod-id">PRODUCER ${i} · P${partition}</span>
+        <span class="prod-name">prod-${i}</span>
+      </div>
+      <div class="producer-dot" style="background:${PRODUCER_COLORS[i]};box-shadow:0 0 5px ${PRODUCER_COLORS[i]}"></div>
+    `;
+    btn.onclick = () => triggerMessage(i);
+    col.appendChild(btn);
+  }
+}
+
+function buildCluster() {
+  const box = document.getElementById('cluster-box');
+  const pDefs = [
+    { border:'rgba(88,166,255,0.45)',  hbg:'rgba(88,166,255,0.1)',  hl:'#58a6ff', name:'PART 0' },
+    { border:'rgba(63,185,80,0.45)',   hbg:'rgba(63,185,80,0.1)',   hl:'#3fb950', name:'PART 1' },
+    { border:'rgba(240,136,62,0.45)',  hbg:'rgba(240,136,62,0.1)',  hl:'#f0883e', name:'PART 2' },
+  ];
+  const bDefs = [
+    { border:'rgba(88,166,255,0.28)',  hbg:'rgba(88,166,255,0.06)', hl:'#58a6ff', label:'BROKER 1' },
+    { border:'rgba(63,185,80,0.28)',   hbg:'rgba(63,185,80,0.06)',  hl:'#3fb950', label:'BROKER 2' },
+    { border:'rgba(210,168,255,0.28)', hbg:'rgba(210,168,255,0.06)',hl:'#d2a8ff', label:'BROKER 3' },
+  ];
+
+  for (let b = 0; b < 3; b++) {
+    const bd = bDefs[b];
+    const broker = document.createElement('div');
+    broker.className = `broker broker-${b+1}`;
+    broker.id = `broker-${b}`;
+    broker.style.borderColor = bd.border;
+    broker.innerHTML = `
+      <div class="broker-header" style="background:${bd.hbg};color:${bd.hl}">
+        ${bd.label}
+        <div class="broker-led"></div>
+      </div>
+      <div class="broker-body">
+        <div class="topic-header">topic: events</div>
+        ${[0,1,2].map(p => {
+          const pd = pDefs[p];
+          const isLeader = b === p; // broker b is leader for partition b
+          return `
+          <div class="partition p${p}" id="broker-${b}-part-${p}" style="border-color:${pd.border}">
+            <div class="partition-header" style="background:${pd.hbg};color:${pd.hl}">
+              <span>${pd.name}${isLeader ? ' ★' : ''}</span>
+              <span class="offset-badge" id="offset-b${b}-p${p}">off:0</span>
+            </div>
+            <div class="partition-body">
+              ${[0,1,2].map(r => `
+                <div class="replica-row">
+                  <span class="replica-label">${r===0?'L:':'R'+r+':'}</span>
+                  <div class="replica ${r===0?'leader':''}" id="replica-b${b}-p${p}-r${r}"></div>
+                </div>
+              `).join('')}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+    box.appendChild(broker);
+  }
+}
+
+function buildConsumers() {
+  const col = document.getElementById('consumers-col');
+
+  // Consumer Group
+  const grp = document.createElement('div');
+  grp.className = 'consumer-group-box';
+  grp.innerHTML = `<div class="group-label">Consumer Group</div>`;
+
+  const c0 = document.createElement('div');
+  c0.className = 'consumer consumer-1';
+  c0.id = 'consumer-0';
+  c0.innerHTML = `
+    <div class="cinfo">
+      <span class="cinfo-sub">PART 0, 2</span>
+      <span>consumer-0</span>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+      <div class="consumer-dot" style="background:var(--accent2);box-shadow:0 0 5px var(--accent2)"></div>
+    </div>`;
+
+  const c1 = document.createElement('div');
+  c1.className = 'consumer consumer-2';
+  c1.id = 'consumer-1';
+  c1.innerHTML = `
+    <div class="cinfo">
+      <span class="cinfo-sub">PART 1</span>
+      <span>consumer-1</span>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+      <div class="consumer-dot" style="background:var(--green);box-shadow:0 0 5px var(--green)"></div>
+    </div>`;
+
+  grp.appendChild(c0);
+  grp.appendChild(c1);
+  col.appendChild(grp);
+
+  // Independent
+  const indSep = document.createElement('div');
+  indSep.className = 'section-label';
+  indSep.style.marginTop = '10px';
+  indSep.textContent = 'Independent';
+  col.appendChild(indSep);
+
+  const cInd = document.createElement('div');
+  cInd.className = 'ind-consumer ind-consumer-style';
+  cInd.id = 'consumer-ind';
+  cInd.innerHTML = `
+    <div class="cinfo">
+      <span class="cinfo-sub">ALL PARTS</span>
+      <span>analytics</span>
+    </div>
+    <div class="consumer-dot" style="background:var(--accent);box-shadow:0 0 5px var(--accent)"></div>`;
+  col.appendChild(cInd);
+}
+
+// ─── ANIMATION ────────────────────────────────────────────────────────────────
+function getCenter(el) {
+  const r = el.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}
+
+function spawnEnvelope(fromEl, toEl, color, label, arcDir, onArrive) {
+  const layer = document.getElementById('envelope-layer');
+  const env = document.createElement('div');
+  env.className = 'envelope';
+  env.textContent = label;
+  env.style.background = color;
+  env.style.setProperty('color', 'rgba(0,0,0,0.88)');
+  layer.appendChild(env);
+
+  const from = getCenter(fromEl);
+  const to   = getCenter(toEl);
+  const arc  = arcDir || -1; // -1 = above, 1 = below
+
+  const midX = (from.x + to.x) / 2;
+  const midY = (from.y + to.y) / 2 + arc * 22;
+
+  env.style.left = (from.x - 11) + 'px';
+  env.style.top  = (from.y - 7)  + 'px';
+  env.style.opacity = '0';
+
+  const duration = 750;
+  const start = performance.now();
+
+  inFlight++;
+  updateInFlight();
+
+  function tick(now) {
+    const t = Math.min((now - start) / duration, 1);
+    const ease = t < 0.5 ? 2*t*t : -1+(4-2*t)*t; // ease-in-out quad
+    const mt = 1 - ease;
+    const x = mt*mt*from.x + 2*mt*ease*midX + ease*ease*to.x;
+    const y = mt*mt*from.y + 2*mt*ease*midY + ease*ease*to.y;
+    env.style.left = (x - 11) + 'px';
+    env.style.top  = (y - 7)  + 'px';
+    // fade in then out at end
+    if (t < 0.1) env.style.opacity = String(t / 0.1);
+    else if (t > 0.82) env.style.opacity = String(1 - (t - 0.82) / 0.18);
+    else env.style.opacity = '1';
+
+    if (t < 1) requestAnimationFrame(tick);
+    else {
+      env.remove();
+      inFlight--;
+      updateInFlight();
+      if (onArrive) onArrive();
+    }
+  }
+  requestAnimationFrame(tick);
+}
+
+// ─── CORE SEND LOGIC ─────────────────────────────────────────────────────────
+function triggerMessage(producerIdx) {
+  const partition   = producerIdx % 3;         // deterministic partition
+  const leaderBroker = partition;              // broker p is leader for partition p
+  const color = PRODUCER_COLORS[producerIdx];
+  const label = String(producerIdx);
+
+  const prodEl   = document.getElementById(`producer-${producerIdx}`);
+  const brokerEl = document.getElementById(`broker-${leaderBroker}`);
+
+  // Flash producer button
+  prodEl.classList.add('sending');
+  setTimeout(() => prodEl.classList.remove('sending'), 200);
+
+  // Phase 1: Producer → Leader Broker
+  spawnEnvelope(prodEl, brokerEl, color, label, -1, () => {
+    addToReplica(leaderBroker, partition, 0, color, label);
+    updateOffset(leaderBroker, partition);
+    totalMsgs++;
+    document.getElementById('total-msgs').textContent = totalMsgs;
+    log(`prod-${producerIdx} → Broker-${leaderBroker+1} [Leader] → Partition-${partition}`, color);
+
+    // Phase 2: Leader → Follower brokers (replication)
+    const followers = [0,1,2].filter(b => b !== leaderBroker);
+    followers.forEach((fb, fi) => {
+      const followerEl = document.getElementById(`broker-${fb}`);
+      const delay = fi * 120;
+      setTimeout(() => {
+        spawnEnvelope(brokerEl, followerEl, color, label, fi === 0 ? -1 : 1, () => {
+          // For follower replica: find which replica slot this is
+          // Each broker stores all 3 partitions; replica index = is it leader or follower
+          const replicaIdx = fb < leaderBroker ? 1 : 2;
+          addToReplica(fb, partition, replicaIdx, color, label);
+          updateOffset(fb, partition);
+          log(`Broker-${leaderBroker+1} → Broker-${fb+1} [Follower replica, Partition-${partition}]`, color);
+        });
+      }, delay);
+    });
+
+    // Phase 3: → Consumers (after brief replication settle)
+    setTimeout(() => {
+      deliverToConsumers(partition, leaderBroker, color, label);
+    }, 380);
+  });
+}
+
+function deliverToConsumers(partition, leaderBroker, color, label) {
+  const groupMap = { 0: 0, 1: 1, 2: 0 };
+  const groupConsumerIdx = groupMap[partition];
+  const groupEl  = document.getElementById(`consumer-${groupConsumerIdx}`);
+  const indEl    = document.getElementById('consumer-ind');
+  const brokerEl = document.getElementById(`broker-${leaderBroker}`);
+
+  // Group consumer
+  spawnEnvelope(brokerEl, groupEl, color, label, -1, () => {
+    groupEl.classList.add('receiving');
+    setTimeout(() => groupEl.classList.remove('receiving'), 250);
+    consumerMsgCounts[groupConsumerIdx]++;
+    document.getElementById(`ccount-${groupConsumerIdx}`).textContent = consumerMsgCounts[groupConsumerIdx];
+    log(`Partition-${partition} → consumer-${groupConsumerIdx} [Consumer Group]`, color);
+  });
+
+  // Independent consumer (slight stagger)
+  setTimeout(() => {
+    spawnEnvelope(brokerEl, indEl, color, label, 1, () => {
+      indEl.classList.add('receiving');
+      setTimeout(() => indEl.classList.remove('receiving'), 250);
+      consumerMsgCounts[2]++;
+      document.getElementById('ccount-2').textContent = consumerMsgCounts[2];
+      log(`Partition-${partition} → analytics [Independent Consumer]`, color);
+    });
+  }, 100);
+}
+
+// ─── SEND ALL ────────────────────────────────────────────────────────────────
+function sendAll() {
+  const btn = document.getElementById('send-all-btn');
+  btn.classList.add('firing');
+  btn.disabled = true;
+  setTimeout(() => { btn.classList.remove('firing'); btn.disabled = false; }, 2200);
+
+  log('⚡ Send All — firing 10 messages simultaneously', '#f0883e');
+
+  // Stagger slightly so animations don't all perfectly overlap
+  for (let i = 0; i < NUM_PRODUCERS; i++) {
+    setTimeout(() => triggerMessage(i), i * 60);
+  }
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function addToReplica(broker, partition, replica, color, label) {
+  const el = document.getElementById(`replica-b${broker}-p${partition}-r${replica}`);
+  if (!el) return;
+  const dots = el.querySelectorAll('.replica-msg');
+  if (dots.length >= 7) dots[0].remove();
+  const dot = document.createElement('div');
+  dot.className = 'replica-msg';
+  dot.style.background = color;
+  dot.textContent = label;
+  el.appendChild(dot);
+}
+
+function updateOffset(broker, partition) {
+  partitionOffsets[broker][partition]++;
+  const el = document.getElementById(`offset-b${broker}-p${partition}`);
+  if (el) el.textContent = `off:${partitionOffsets[broker][partition]}`;
+}
+
+function updateInFlight() {
+  document.getElementById('inflight').textContent = inFlight;
+}
+
+function log(msg, color) {
+  const panel = document.getElementById('log-panel');
+  const line  = document.createElement('div');
+  line.className = 'log-line';
+  const ts = new Date().toISOString().slice(11,23);
+  line.innerHTML = `<b style="color:${color||'#7d8590'}">[${ts}]</b> ${msg}`;
+  panel.prepend(line);
+  const lines = panel.querySelectorAll('.log-line');
+  if (lines.length > 100) lines[lines.length-1].remove();
+}
+
+function resetAll() {
+  totalMsgs = 0; inFlight = 0;
+  consumerMsgCounts = [0,0,0];
+  partitionOffsets = [[0,0,0],[0,0,0],[0,0,0]];
+  document.getElementById('total-msgs').textContent = 0;
+  document.getElementById('inflight').textContent = 0;
+  [0,1,2].forEach(i => document.getElementById(`ccount-${i}`).textContent = 0);
+  document.querySelectorAll('.replica').forEach(r => r.innerHTML = '');
+  document.querySelectorAll('[id^="offset-b"]').forEach(el => el.textContent = 'off:0');
+  document.getElementById('log-panel').innerHTML = '';
+  document.getElementById('envelope-layer').innerHTML = '';
+  log('System reset. Click a producer button to send a message.', '#7d8590');
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+buildProducers();
+buildCluster();
+buildConsumers();
+log('Ready. Click any producer button to send a message through the cluster.', '#3fb950');
+log('Partition assignment: prod-0,3,6,9 → P0 | prod-1,4,7 → P1 | prod-2,5,8 → P2', '#7d8590');
+log('Consumer group: P0,P2 → consumer-0 | P1 → consumer-1. Analytics reads all.', '#7d8590');
+</script>
+</body>
+</html>
