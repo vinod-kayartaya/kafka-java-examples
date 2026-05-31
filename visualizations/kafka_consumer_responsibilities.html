@@ -1,0 +1,390 @@
+
+<style>
+  @keyframes flow    { to { stroke-dashoffset: -24; } }
+  @keyframes pop     { 0%{transform:scale(0);opacity:0} 60%{transform:scale(1.15)} 100%{transform:scale(1);opacity:1} }
+  @keyframes slide-in{ from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes fade-in { from{opacity:0} to{opacity:1} }
+  @keyframes pulse-r { 0%,100%{opacity:1} 50%{opacity:.45} }
+  @keyframes ticker  { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+  @keyframes march   { to{stroke-dashoffset:-20} }
+  @keyframes blink   { 0%,100%{opacity:1} 50%{opacity:.25} }
+  @keyframes rise    { from{transform:translateY(18px);opacity:0} to{transform:translateY(0);opacity:1} }
+
+  .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+  *{box-sizing:border-box;margin:0;padding:0}
+
+  .root{font-family:var(--font-sans,sans-serif);padding:1rem 0 1.5rem;color:var(--color-text-primary)}
+
+  /* stepper dots */
+  .dots{display:flex;align-items:center;gap:0;margin-bottom:1.25rem}
+  .dot-item{display:flex;align-items:center;flex:1}
+  .dot{width:30px;height:30px;border-radius:50%;border:.5px solid var(--color-border-secondary);background:var(--color-background-secondary);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:var(--color-text-secondary);transition:all .3s;flex-shrink:0;cursor:pointer}
+  .dot.active{background:#1D9E75;border-color:#1D9E75;color:#fff;box-shadow:0 0 0 3px rgba(29,158,117,.18)}
+  .dot.done{background:var(--color-background-success);border-color:var(--color-border-success);color:var(--color-text-success)}
+  .dot-line{flex:1;height:.5px;background:var(--color-border-tertiary);transition:background .3s}
+  .dot-line.done{background:var(--color-border-success)}
+
+  /* card */
+  .stage-card{background:var(--color-background-primary);border:.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden;animation:slide-in .3s ease}
+  .stage-header{display:flex;align-items:center;gap:12px;padding:1rem 1.25rem .75rem;border-bottom:.5px solid var(--color-border-tertiary)}
+  .stage-num{width:36px;height:36px;border-radius:50%;background:#EAF3DE;color:#27500A;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:500;flex-shrink:0}
+  .stage-titles{flex:1}
+  .stage-name{font-size:16px;font-weight:500}
+  .stage-sub{font-size:13px;color:var(--color-text-secondary);margin-top:1px}
+
+  .stage-body{display:grid;grid-template-columns:1fr 1fr;min-height:240px}
+  .stage-viz{padding:1.25rem;border-right:.5px solid var(--color-border-tertiary);display:flex;align-items:center;justify-content:center}
+  .stage-info{padding:1.25rem;display:flex;flex-direction:column;gap:10px}
+  .info-item{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--color-text-secondary);animation:fade-in .4s ease both}
+  .info-dot{width:6px;height:6px;border-radius:50%;background:#1D9E75;flex-shrink:0;margin-top:6px}
+  .info-key{color:var(--color-text-primary);font-weight:500;margin-right:3px}
+
+  .nav{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1.25rem;border-top:.5px solid var(--color-border-tertiary)}
+  .nav button{padding:7px 20px;font-size:13px;border-radius:var(--border-radius-md);font-weight:500;cursor:pointer;transition:all .15s}
+  .btn-prev{background:none;border:.5px solid var(--color-border-secondary);color:var(--color-text-secondary)}
+  .btn-prev:hover{background:var(--color-background-secondary)}
+  .btn-next{background:#1D9E75;border:none;color:#fff}
+  .btn-next:hover{background:#0F6E56}
+  .btn-next:disabled,.btn-prev:disabled{opacity:.35;cursor:default}
+  .nav-label{font-size:12px;color:var(--color-text-tertiary)}
+
+  .viz-svg{width:100%;max-width:280px}
+  .rec{animation:pop .35s ease both}
+  .flowline{stroke-dasharray:6 4;animation:flow 1s linear infinite}
+  .marchline{stroke-dasharray:5 4;animation:march 1.2s linear infinite}
+  .pulse-dot{animation:pulse-r 1.4s ease-in-out infinite}
+  .blink-el{animation:blink .9s ease-in-out infinite}
+  .rise-el{animation:rise .45s ease both}
+</style>
+
+<h2 class="sr-only">Kafka consumer responsibilities: a 5-step interactive walkthrough covering cluster connection, topic subscription, polling, message processing, and offset commits.</h2>
+
+<div class="root">
+  <div class="dots" id="dots"></div>
+  <div class="stage-card" id="stage-card"></div>
+</div>
+
+<script>
+const TEAL   = '#1D9E75';
+const TEAL_D = '#085041';
+const TEAL_L = '#E1F5EE';
+const TEAL_M = '#0F6E56';
+const PUR    = '#534AB7';
+const PUR_L  = '#EEEDFE';
+const PUR_D  = '#3C3489';
+const AMB    = '#BA7517';
+const AMB_L  = '#FAEEDA';
+const BLU    = '#185FA5';
+const BLU_L  = '#E6F1FB';
+const COR    = '#993C1D';
+const COR_L  = '#FAECE7';
+const GRY    = '#5F5E5A';
+const GRY_L  = '#F1EFE8';
+const GRY_M  = '#D3D1C7';
+
+const DEFS = `<defs><marker id="arh" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>`;
+
+function svg(h, body) {
+  return `<svg class="viz-svg" viewBox="0 0 280 ${h}" role="img" aria-hidden="true">${DEFS}${body}</svg>`;
+}
+function R(x,y,w,h,fill,rx=6,extra='') {
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${fill}" stroke="${fill}" stroke-width="0.5" opacity="0.9" ${extra}/>`;
+}
+function RO(x,y,w,h,fill,rx=6,extra='') {
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${fill}" fill-opacity="0.12" stroke="${fill}" stroke-width="0.5" ${extra}/>`;
+}
+function T(x,y,s,anchor='middle',size=11,color='var(--color-text-primary)',weight=400,extra='') {
+  return `<text x="${x}" y="${y}" text-anchor="${anchor}" dominant-baseline="central" font-family="var(--font-sans,sans-serif)" font-size="${size}" font-weight="${weight}" fill="${color}" ${extra}>${s}</text>`;
+}
+function Line(x1,y1,x2,y2,color,dash='',w=1,marker='') {
+  return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${w}" ${dash?`stroke-dasharray="${dash}"`:''}  ${marker?`marker-end="url(#arh)"`:''}  fill="none"/>`;
+}
+function Path(d,color,dash='',w=1,marker='') {
+  return `<path d="${d}" stroke="${color}" stroke-width="${w}" fill="none" ${dash?`stroke-dasharray="${dash}"`:''}  ${marker?`marker-end="url(#arh)"`:''} stroke-linecap="round"/>`;
+}
+
+/* ── stage 1: Connect ─────────────────────────── */
+function vizConnect() {
+  // Consumer box on left, Broker cluster on right, bootstrap handshake in middle
+  const steps = [
+    {y:40,  label:'1. bootstrap.servers lookup', color:PUR},
+    {y:82,  label:'2. TCP connection established', color:TEAL},
+    {y:124, label:'3. ApiVersions request/response', color:AMB},
+    {y:166, label:'4. Metadata fetch (topics, leaders)', color:BLU},
+  ];
+
+  const rows = steps.map((s,i) => `
+    <g class="rec" style="animation-delay:${i*0.1}s">
+      ${RO(14, s.y, 252, 30, s.color, 4)}
+      <circle cx="26" cy="${s.y+15}" r="7" fill="${s.color}" opacity="0.8"/>
+      ${T(26, s.y+15, `${i+1}`, 'middle', 9, '#fff', 600)}
+      ${T(144, s.y+15, s.label, 'middle', 10, s.color, 400)}
+    </g>`).join('');
+
+  return svg(216, `
+    ${T(140, 18, 'Bootstrap handshake sequence', 'middle', 11, 'var(--color-text-secondary)')}
+    ${rows}
+    <g class="rec" style="animation-delay:0.45s">
+      ${RO(14, 206, 252, 22, TEAL, 4)}
+      ${T(140, 217, 'Consumer registered · group.id assigned', 'middle', 10, TEAL_M, 500)}
+    </g>
+  `);
+}
+
+/* ── stage 2: Subscribe ───────────────────────── */
+function vizSubscribe() {
+  // Topics as rounded pills, partitions assigned below
+  const topics = [
+    {name:'orders',   color:TEAL,  parts:['P0','P1','P2']},
+    {name:'payments', color:PUR,   parts:['P0','P1']},
+    {name:'events',   color:AMB,   parts:['P0']},
+  ];
+
+  let out = T(140, 16, 'Topic subscription + partition assignment', 'middle', 10, 'var(--color-text-secondary)');
+
+  topics.forEach((t,ti) => {
+    const ty = 32 + ti * 62;
+    out += `<g class="rec" style="animation-delay:${ti*0.12}s">`;
+    out += RO(14, ty, 252, 52, t.color, 6);
+    out += T(70, ty+14, t.name, 'middle', 12, t.color, 500);
+    out += Line(14, ty+28, 266, ty+28, t.color, '3 3', 0.5);
+    t.parts.forEach((p,pi) => {
+      const px = 24 + pi * 52;
+      out += R(px, ty+33, 40, 12, t.color, 3, 'opacity="0.7"');
+      out += T(px+20, ty+39, p, 'middle', 9, '#fff', 500);
+    });
+    // consumer badge
+    out += RO(220, ty+6, 44, 16, t.color, 8);
+    out += T(242, ty+14, 'this consumer', 'middle', 8, t.color, 400);
+    out += `</g>`;
+  });
+
+  return svg(222, out);
+}
+
+/* ── stage 3: Poll ────────────────────────────── */
+function vizPoll() {
+  // Infinite loop diagram: consumer → poll() → broker → records → process → repeat
+  return svg(220, `
+    ${T(140, 16, 'poll() event loop — runs continuously', 'middle', 11, 'var(--color-text-secondary)')}
+
+    ${RO(90, 28, 100, 30, TEAL, 6)}
+    ${T(140, 43, 'consumer.poll()', 'middle', 11, TEAL_M, 500)}
+
+    ${Path('M140 60 L140 78', TEAL, '', 1, 'arh')}
+
+    ${RO(14, 80, 252, 28, BLU, 5)}
+    ${T(140, 94, 'fetch request → broker (fetch.min.bytes, fetch.max.wait.ms)', 'middle', 9, BLU, 400)}
+
+    ${Path('M140 110 L140 128', BLU, '', 1, 'arh')}
+
+    ${RO(14, 130, 252, 28, AMB, 5)}
+    ${T(140, 144, 'broker returns batch of records', 'middle', 10, AMB, 400)}
+
+    ${Path('M140 160 L140 178', AMB, '', 1, 'arh')}
+
+    ${RO(14, 180, 252, 24, GRY, 5)}
+    ${T(140, 192, 'deserialize · hand to application loop', 'middle', 10, GRY, 400)}
+
+    ${Path('M266 192 L278 192 L278 43 L192 43', TEAL, '5 3', 1.2, 'arh')}
+    ${T(274, 118, '↺', 'middle', 14, TEAL, 400)}
+  `);
+}
+
+/* ── stage 4: Process ─────────────────────────── */
+function vizProcess() {
+  // Records flowing through a pipeline: deserialize → validate → transform → sink
+  const pipe = [
+    {label:'Deserialize', sub:'bytes → object', color:PUR},
+    {label:'Validate',    sub:'schema / nulls',  color:TEAL},
+    {label:'Transform',   sub:'enrich / filter', color:AMB},
+    {label:'Sink',        sub:'DB / API / emit', color:BLU},
+  ];
+
+  let out = T(140, 14, 'Per-record processing pipeline', 'middle', 11, 'var(--color-text-secondary)');
+
+  // record envelope entering left
+  out += `<g class="rec">`;
+  out += R(4, 90, 26, 20, COR, 3, 'opacity="0.85"');
+  out += T(17, 100, 'rec', 'middle', 8, '#fff', 500);
+  out += `</g>`;
+  out += Path('M32 100 L44 100', COR, '', 1, 'arh');
+
+  pipe.forEach((p, i) => {
+    const x = 44 + i * 58;
+    out += `<g class="rec" style="animation-delay:${i*0.09}s">`;
+    out += RO(x, 75, 50, 50, p.color, 5);
+    out += T(x+25, x===44?91:91, p.label, 'middle', 9, p.color, 500);
+    out += T(x+25, 107, p.sub, 'middle', 8, p.color, 400);
+    out += `</g>`;
+    if (i < pipe.length-1) {
+      out += Path(`M${x+50} 100 L${x+58} 100`, p.color, '', 1, 'arh');
+    }
+  });
+
+  // success exit
+  out += Path('M274 100 L276 100', BLU, '', 1, 'arh');
+  out += `<g class="rec" style="animation-delay:0.4s">`;
+  out += R(4, 136, 272, 22, TEAL, 4, 'opacity="0.12"');
+  out += `<rect x="4" y="136" width="272" height="22" rx="4" fill="none" stroke="${TEAL}" stroke-width="0.5"/>`;
+  out += T(140, 147, 'commit-ready · offset ready to advance', 'middle', 10, TEAL_M, 400);
+  out += `</g>`;
+
+  // error path
+  out += `<g class="rec" style="animation-delay:0.5s">`;
+  out += RO(70, 172, 140, 28, COR, 5);
+  out += T(140, 182, 'error → DLQ / retry / log', 'middle', 10, COR, 400);
+  out += T(140, 194, 'do NOT commit offset on failure', 'middle', 9, COR, 400);
+  out += `</g>`;
+  out += Path('M140 160 L140 170', COR, '3 2', 0.8);
+
+  return svg(212, out);
+}
+
+/* ── stage 5: Commit offsets ─────────────────── */
+function vizCommit() {
+  // Partition log tape + offset pointer advancing; three commit mode cards
+  const modes = [
+    {label:'auto commit',  detail:'enable.auto.commit=true · every 5 s', color:AMB,  icon:'⏱'},
+    {label:'sync commit',  detail:'commitSync() · blocks until ack',      color:TEAL, icon:'⏸'},
+    {label:'async commit', detail:'commitAsync() · callback on ack',      color:BLU,  icon:'⚡'},
+  ];
+
+  // offset tape
+  let tape = '';
+  for (let i=0;i<10;i++) {
+    const filled = i < 6;
+    tape += R(14+i*26, 34, 22, 22, filled ? TEAL : GRY_M, 3, `opacity="${filled?0.7:0.25}"`);
+    tape += T(25+i*26, 45, i, 'middle', 9, filled?'#fff':GRY, filled?500:400);
+  }
+  // committed pointer
+  tape += `<g class="rise-el" style="animation-delay:0.2s">`;
+  tape += `<polygon points="139,60 131,72 147,72" fill="${TEAL}" opacity="0.9"/>`;
+  tape += T(139, 80, 'committed offset = 5', 'middle', 9, TEAL_M, 500);
+  tape += `</g>`;
+  // next pointer
+  tape += `<g class="rise-el" style="animation-delay:0.4s">`;
+  tape += `<polygon points="165,60 157,72 173,72" fill="${PUR}" opacity="0.6"/>`;
+  tape += T(165, 80, 'next', 'middle', 9, PUR, 400);
+  tape += `</g>`;
+
+  let cards = '';
+  modes.forEach((m,i) => {
+    const y = 96 + i*40;
+    cards += `<g class="rec" style="animation-delay:${i*0.1}s">`;
+    cards += RO(14, y, 252, 32, m.color, 5);
+    cards += T(30, y+16, m.icon, 'middle', 14, m.color);
+    cards += T(90, y+10, m.label, 'start', 10, m.color, 500);
+    cards += T(90, y+24, m.detail, 'start', 9, m.color, 400);
+    cards += `</g>`;
+  });
+
+  return svg(226, `
+    ${T(140, 18, 'Partition log — offset tracking', 'middle', 11, 'var(--color-text-secondary)')}
+    ${tape}
+    ${T(140, 92, 'Commit strategies', 'middle', 10, 'var(--color-text-tertiary)')}
+    ${cards}
+  `);
+}
+
+/* ── stages config ────────────────────────────── */
+const STAGES = [
+  {
+    name: "Connect to Kafka cluster",
+    sub:  "Establish a TCP connection using bootstrap servers and complete the handshake",
+    info: [
+      {key:"bootstrap.servers",  detail:"comma-separated host:port list; the consumer uses this to discover the full cluster topology"},
+      {key:"group.id",           detail:"identifies the consumer group; consumers sharing a group.id coordinate partition ownership"},
+      {key:"group.instance.id",  detail:"set for static membership — avoids rebalances when a consumer restarts within session.timeout.ms"},
+    ],
+    viz: vizConnect,
+  },
+  {
+    name: "Subscribe to topics",
+    sub:  "Declare which topics to read; the group coordinator assigns partitions via rebalance",
+    info: [
+      {key:"subscribe(topics)",  detail:"pattern or list-based; triggers a rebalance that assigns partitions across all group members"},
+      {key:"assign(partitions)", detail:"manual assignment — bypasses the group coordinator; useful for exactly-once or replay scenarios"},
+      {key:"Rebalance protocol", detail:"cooperative (incremental) rebalances are preferred — they pause only migrating partitions, not the entire group"},
+    ],
+    viz: vizSubscribe,
+  },
+  {
+    name: "Poll records continuously",
+    sub:  "Call poll() in a loop; it fetches batches, drives heartbeats, and triggers rebalances",
+    info: [
+      {key:"max.poll.records",    detail:"cap on records returned per poll() call; tune to keep processing time below max.poll.interval.ms"},
+      {key:"max.poll.interval.ms",detail:"if poll() is not called within this window the consumer is considered dead and triggers a rebalance"},
+      {key:"fetch.min.bytes",     detail:"broker waits until at least this many bytes are available — reduces round-trips at the cost of latency"},
+    ],
+    viz: vizPoll,
+  },
+  {
+    name: "Process messages",
+    sub:  "Deserialize, validate, transform, and forward each record; handle errors without losing offset progress",
+    info: [
+      {key:"Deserializer",  detail:"must match the producer's serializer — mismatches throw SerializationException at runtime"},
+      {key:"Idempotency",   detail:"at-least-once delivery means duplicates are possible; design handlers to be idempotent or use exactly-once semantics"},
+      {key:"Dead letter queue", detail:"route poison-pill records to a separate topic instead of blocking the partition indefinitely"},
+    ],
+    viz: vizProcess,
+  },
+  {
+    name: "Commit offsets",
+    sub:  "Persist the position of the last successfully processed record so restarts resume from the right place",
+    info: [
+      {key:"auto.offset.reset",  detail:"what to do when no committed offset exists: earliest (replay all), latest (skip to now), or none (throw)"},
+      {key:"commitSync()",       detail:"blocks until the broker acknowledges the commit — safe but adds latency per batch"},
+      {key:"commitAsync()",      detail:"non-blocking; provide a callback to handle commit failures — retrying async commits can cause out-of-order commits"},
+    ],
+    viz: vizCommit,
+  },
+];
+
+let current = 0;
+
+function render() {
+  const s = STAGES[current];
+
+  document.getElementById('dots').innerHTML = STAGES.map((_,i) => {
+    const state = i < current ? 'done' : i === current ? 'active' : '';
+    const lineState = i < current ? 'done' : '';
+    return `<div class="dot-item">
+      <div class="dot ${state}" onclick="goTo(${i})">${i < current ? '✓' : i+1}</div>
+      ${i < STAGES.length-1 ? `<div class="dot-line ${lineState}"></div>` : ''}
+    </div>`;
+  }).join('');
+
+  const info = s.info.map((it,i) =>
+    `<div class="info-item" style="animation-delay:${0.08+i*0.08}s">
+      <div class="info-dot"></div>
+      <div><span class="info-key">${it.key}:</span>${it.detail}</div>
+    </div>`
+  ).join('');
+
+  document.getElementById('stage-card').innerHTML = `
+    <div class="stage-header">
+      <div class="stage-num">${current+1}</div>
+      <div class="stage-titles">
+        <div class="stage-name">${s.name}</div>
+        <div class="stage-sub">${s.sub}</div>
+      </div>
+    </div>
+    <div class="stage-body">
+      <div class="stage-viz">${s.viz()}</div>
+      <div class="stage-info">${info}</div>
+    </div>
+    <div class="nav">
+      <button class="btn-prev" onclick="prev()" ${current===0?'disabled':''}>← Back</button>
+      <span class="nav-label">${current+1} of ${STAGES.length}</span>
+      <button class="btn-next" onclick="next()" ${current===STAGES.length-1?'disabled':''}>Next →</button>
+    </div>
+  `;
+}
+
+function next() { if (current < STAGES.length-1) { current++; render(); } }
+function prev() { if (current > 0) { current--; render(); } }
+function goTo(i) { current = i; render(); }
+
+render();
+</script>

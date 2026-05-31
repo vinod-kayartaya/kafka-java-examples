@@ -1,0 +1,538 @@
+
+<style>
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+  @keyframes flow  { to { stroke-dashoffset: -24; } }
+  @keyframes pop   { 0%{transform:scale(0);opacity:0} 60%{transform:scale(1.15)} 100%{transform:scale(1);opacity:1} }
+  @keyframes slide-in { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+  @keyframes spin   { to{transform:rotate(360deg)} }
+  @keyframes pulse  { 0%,100%{opacity:1} 50%{opacity:.5} }
+  @keyframes fade-in{ from{opacity:0} to{opacity:1} }
+
+  .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+  *{box-sizing:border-box;margin:0;padding:0}
+
+  .root {
+    font-family: var(--font-sans, sans-serif);
+    padding: 1rem 0 1.5rem;
+    color: var(--color-text-primary);
+  }
+
+  /* ── step dots ── */
+  .dots {
+    display: flex; align-items: center; gap: 0; margin-bottom: 1.25rem;
+  }
+  .dot-item { display: flex; align-items: center; flex: 1; }
+  .dot {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 0.5px solid var(--color-border-secondary);
+    background: var(--color-background-secondary);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 500; color: var(--color-text-secondary);
+    transition: all 0.3s; flex-shrink: 0; cursor: pointer;
+    position: relative; z-index: 1;
+  }
+  .dot.active {
+    background: #534AB7; border-color: #534AB7; color: #fff;
+    box-shadow: 0 0 0 3px rgba(83,74,183,0.18);
+  }
+  .dot.done {
+    background: var(--color-background-success); border-color: var(--color-border-success);
+    color: var(--color-text-success);
+  }
+  .dot-line {
+    flex: 1; height: 0.5px; background: var(--color-border-tertiary); transition: background 0.3s;
+  }
+  .dot-line.done { background: var(--color-border-success); }
+
+  /* ── main stage card ── */
+  .stage-card {
+    background: var(--color-background-primary);
+    border: 0.5px solid var(--color-border-tertiary);
+    border-radius: var(--border-radius-lg);
+    overflow: hidden;
+    animation: slide-in 0.3s ease;
+  }
+  .stage-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 1rem 1.25rem 0.75rem;
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+  }
+  .stage-num {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: #EEEDFE; color: #3C3489;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; font-weight: 500; flex-shrink: 0;
+  }
+  .stage-titles { flex: 1; }
+  .stage-name  { font-size: 16px; font-weight: 500; }
+  .stage-sub   { font-size: 13px; color: var(--color-text-secondary); margin-top: 1px; }
+
+  /* ── stage body ── */
+  .stage-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    min-height: 240px;
+  }
+  .stage-viz {
+    padding: 1.25rem;
+    border-right: 0.5px solid var(--color-border-tertiary);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .stage-info {
+    padding: 1.25rem;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .info-item {
+    display: flex; align-items: flex-start; gap: 8px;
+    font-size: 13px; color: var(--color-text-secondary);
+    animation: fade-in 0.4s ease both;
+  }
+  .info-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #7F77DD; flex-shrink: 0; margin-top: 6px;
+  }
+  .info-key { color: var(--color-text-primary); font-weight: 500; margin-right: 3px; }
+  .code-chip {
+    display: inline-block; font-family: var(--font-mono, monospace);
+    font-size: 11px; background: var(--color-background-secondary);
+    border: 0.5px solid var(--color-border-tertiary);
+    border-radius: 4px; padding: 2px 6px; color: #534AB7;
+  }
+
+  /* ── nav ── */
+  .nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.75rem 1.25rem;
+    border-top: 0.5px solid var(--color-border-tertiary);
+  }
+  .nav button {
+    padding: 7px 20px; font-size: 13px; border-radius: var(--border-radius-md);
+    font-weight: 500; cursor: pointer; transition: all 0.15s;
+  }
+  .btn-prev { background: none; border: 0.5px solid var(--color-border-secondary); color: var(--color-text-secondary); }
+  .btn-prev:hover { background: var(--color-background-secondary); }
+  .btn-next { background: #534AB7; border: none; color: #fff; }
+  .btn-next:hover { background: #3C3489; }
+  .btn-next:disabled { opacity: 0.4; cursor: default; background: #534AB7; }
+  .btn-prev:disabled { opacity: 0.3; cursor: default; }
+  .nav-label { font-size: 12px; color: var(--color-text-tertiary); }
+
+  /* ── SVG vizzes ── */
+  .viz-svg { width: 100%; max-width: 280px; }
+
+  /* record blocks */
+  .rec { animation: pop 0.35s ease both; }
+
+  /* flow line */
+  .flowline { stroke-dasharray: 6 4; animation: flow 1s linear infinite; }
+
+  /* spinner */
+  .spin-el { transform-origin: 50% 50%; animation: spin 1.2s linear infinite; }
+
+  /* partition bars */
+  .pbar { transition: width 0.6s ease; }
+
+  /* buffer dots */
+  .bdot { animation: bounce 0.8s ease-in-out infinite; }
+
+  /* batch bracket */
+  .brace-appear { animation: pop 0.4s ease both; }
+
+  /* ack check */
+  .ack-appear { animation: pop 0.5s ease both; }
+
+  /* retry counter */
+  .retry-num { animation: blink 1s ease-in-out 3; }
+</style>
+
+<h2 class="sr-only">Kafka producer responsibilities: an 8-step interactive walkthrough showing how a producer creates, serializes, routes, buffers, batches, sends, retries, and acknowledges messages.</h2>
+
+<div class="root">
+
+  <!-- dot stepper -->
+  <div class="dots" id="dots"></div>
+
+  <!-- stage card -->
+  <div class="stage-card" id="stage-card">
+    <!-- injected by JS -->
+  </div>
+
+</div>
+
+<script>
+const STAGES = [
+  {
+    name: "Create records",
+    sub: "Build the ProducerRecord with topic, key, value, headers and optional partition",
+    icon: "✦",
+    info: [
+      { key: "ProducerRecord", detail: "wraps topic name, optional key, payload, optional partition override, and headers" },
+      { key: "Key", detail: "used for partition routing; messages with the same key always land on the same partition" },
+      { key: "Headers", detail: "metadata attached to the record — trace IDs, schema version, content type" },
+    ],
+    viz: vizCreate,
+  },
+  {
+    name: "Serialize data",
+    sub: "Convert key and value objects to byte arrays using configured serializers",
+    icon: "⇄",
+    info: [
+      { key: "Key serializer", detail: "converts the key object to bytes — StringSerializer, LongSerializer, Avro, etc." },
+      { key: "Value serializer", detail: "converts the message payload; both sides must match the consumer's deserializer" },
+      { key: "Schema registry", detail: "Avro/Protobuf serializers can look up the schema at runtime and embed a schema ID" },
+    ],
+    viz: vizSerialize,
+  },
+  {
+    name: "Determine partition",
+    sub: "Choose which partition the record belongs to using the partitioner",
+    icon: "⊸",
+    info: [
+      { key: "DefaultPartitioner", detail: "if a key is present, uses murmur2(key) % numPartitions — same key → same partition" },
+      { key: "Round-robin", detail: "when there is no key, records are distributed evenly across all partitions" },
+      { key: "Custom partitioner", detail: "implement Partitioner to route by geography, tenant, message type, or any logic" },
+    ],
+    viz: vizPartition,
+  },
+  {
+    name: "Buffer records",
+    sub: "Accumulate records in an in-memory RecordAccumulator before sending",
+    icon: "⊙",
+    info: [
+      { key: "buffer.memory", detail: "total bytes the producer can hold across all partitions (default 32 MB)" },
+      { key: "max.block.ms", detail: "how long send() blocks when the buffer is full before throwing BufferExhaustedException" },
+      { key: "Per-partition queue", detail: "each partition has its own deque of ProducerBatch objects inside the accumulator" },
+    ],
+    viz: vizBuffer,
+  },
+  {
+    name: "Batch messages",
+    sub: "Group buffered records into ProducerBatch objects to maximise throughput",
+    icon: "⊞",
+    info: [
+      { key: "batch.size", detail: "when a batch reaches this size (bytes), it is eligible to send (default 16 KB)" },
+      { key: "linger.ms", detail: "wait up to this long before sending an incomplete batch — trades latency for throughput" },
+      { key: "Compression", detail: "batches are compressed together (snappy / lz4 / zstd) for better wire efficiency" },
+    ],
+    viz: vizBatch,
+  },
+  {
+    name: "Send to brokers",
+    sub: "The Sender thread drains ready batches and transmits them over the network",
+    icon: "→",
+    info: [
+      { key: "Sender thread", detail: "a background I/O thread that runs independently of your application thread" },
+      { key: "NetworkClient", detail: "manages TCP connections to each broker; one connection per broker" },
+      { key: "In-flight requests", detail: "max.in.flight.requests.per.connection controls pipeline depth (default 5)" },
+    ],
+    viz: vizSend,
+  },
+  {
+    name: "Retry failed requests",
+    sub: "Automatically resend batches that receive an error or timeout response",
+    icon: "↺",
+    info: [
+      { key: "retries", detail: "how many times the producer retransmits before surfacing the error (default 2147483647)" },
+      { key: "retry.backoff.ms", detail: "wait between attempts; exponential backoff grows up to retry.backoff.max.ms" },
+      { key: "Idempotent producer", detail: "enable.idempotence=true assigns a PID + sequence number so retries never duplicate records" },
+    ],
+    viz: vizRetry,
+  },
+  {
+    name: "Track acknowledgements",
+    sub: "The broker sends an Ack once the record is safely written; the producer confirms delivery",
+    icon: "✓",
+    info: [
+      { key: "acks=0", detail: "fire and forget — no confirmation, highest throughput, possible data loss" },
+      { key: "acks=1", detail: "leader writes to disk before confirming — balanced; loss possible if leader fails" },
+      { key: "acks=all", detail: "all in-sync replicas confirm — strongest guarantee, recommended for critical data" },
+    ],
+    viz: vizAck,
+  },
+];
+
+let current = 0;
+
+/* ── render helpers ──────────────────────────── */
+function mkSvg(h, body) {
+  return `<svg class="viz-svg" viewBox="0 0 280 ${h}" role="img" aria-hidden="true">${body}</svg>`;
+}
+
+function rect(x,y,w,h,cls,rx=6,fill='',extra='') {
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" ${fill?`fill="${fill}"`:'fill="var(--color-background-secondary)"'} stroke="var(--color-border-secondary)" stroke-width="0.5" ${cls?`class="${cls}"`:''}  ${extra}/>`;
+}
+function txt(x,y,s,anchor='middle',cls='',fill='',dy='') {
+  return `<text x="${x}" y="${y}" text-anchor="${anchor}" dominant-baseline="central" font-family="var(--font-sans,sans-serif)" font-size="${cls==='h'?'13':'11'}" font-weight="${cls==='h'?'500':'400'}" fill="${fill||'var(--color-text-primary)'}" ${dy?`dy="${dy}"`:''}>${s}</text>`;
+}
+function arr(x1,y1,x2,y2,color='var(--color-border-secondary)') {
+  return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="1" marker-end="url(#arh)"/>`;
+}
+
+const DEFS = `<defs><marker id="arh" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>`;
+
+/* ── stage vizzes ─────────────────────────────── */
+function vizCreate() {
+  const fields = [
+    {l:'topic', v:'"orders"',  c:'#534AB7', tc:'#EEEDFE'},
+    {l:'key',   v:'"user-42"', c:'#0F6E56', tc:'#E1F5EE'},
+    {l:'value', v:'{...}',     c:'#993C1D', tc:'#FAECE7'},
+    {l:'headers',v:'[...]',   c:'#185FA5', tc:'#E6F1FB'},
+  ];
+  let rows = fields.map((f,i) => {
+    const y = 40 + i*40;
+    return `<g class="rec" style="animation-delay:${i*0.08}s">
+      ${rect(20, y, 240, 30, '', 4, f.tc)}
+      ${txt(80, y+15, f.l, 'start', '', f.c)}
+      <rect x="125" y="${y+4}" width="1" height="22" fill="${f.c}" opacity="0.3" rx="0"/>
+      ${txt(220, y+15, f.v, 'end', '', f.c)}
+    </g>`;
+  }).join('');
+
+  return mkSvg(220, `${DEFS}
+    ${rect(10, 10, 260, 200, '', 8, 'var(--color-background-primary)')}
+    ${txt(140, 27, 'ProducerRecord', 'middle', 'h', '#3C3489')}
+    <line x1="10" y1="38" x2="270" y2="38" stroke="var(--color-border-tertiary)" stroke-width="0.5"/>
+    ${rows}
+  `);
+}
+
+function vizSerialize() {
+  return mkSvg(200, `${DEFS}
+    <g class="rec" style="animation-delay:0s">
+      ${rect(20, 20, 110, 44, '', 6, '#EEEDFE')}
+      ${txt(75, 36, 'key: String', 'middle', 'h', '#3C3489')}
+      ${txt(75, 52, '"user-42"', 'middle', '', '#534AB7')}
+    </g>
+    <g class="rec" style="animation-delay:0.1s">
+      ${rect(150, 20, 110, 44, '', 6, '#FAECE7')}
+      ${txt(205, 36, 'value: Object', 'middle', 'h', '#993C1D')}
+      ${txt(205, 52, '{amount:99}', 'middle', '', '#D85A30')}
+    </g>
+    <line x1="75" y1="70" x2="75" y2="105" stroke="var(--color-border-secondary)" stroke-width="1" stroke-dasharray="3 3"/>
+    <line x1="205" y1="70" x2="205" y2="105" stroke="var(--color-border-secondary)" stroke-width="1" stroke-dasharray="3 3"/>
+    <g class="spin-el" style="transform-origin:75px 115px">
+      ${rect(45, 108, 60, 22, '', 11, '#EEEDFE')}
+      ${txt(75, 119, 'serialize', 'middle', '', '#3C3489')}
+    </g>
+    <g class="spin-el" style="transform-origin:205px 115px">
+      ${rect(175, 108, 60, 22, '', 11, '#FAECE7')}
+      ${txt(205, 119, 'serialize', 'middle', '', '#993C1D')}
+    </g>
+    <line x1="75"  y1="132" x2="75"  y2="156" stroke="var(--color-border-secondary)" stroke-width="1" stroke-dasharray="3 3"/>
+    <line x1="205" y1="132" x2="205" y2="156" stroke="var(--color-border-secondary)" stroke-width="1" stroke-dasharray="3 3"/>
+    <g class="rec" style="animation-delay:0.3s">
+      ${rect(20, 158, 110, 32, '', 6, '#D3D1C7')}
+      ${txt(75, 174, '[0x61 0x62 …]', 'middle', '', '#444441')}
+    </g>
+    <g class="rec" style="animation-delay:0.4s">
+      ${rect(150, 158, 110, 32, '', 6, '#D3D1C7')}
+      ${txt(205, 174, '[0x7B 0x61 …]', 'middle', '', '#444441')}
+    </g>
+  `);
+}
+
+function vizPartition() {
+  const parts = [
+    {label:'Part 0', color:'#534AB7', bg:'#EEEDFE', pct:70},
+    {label:'Part 1', color:'#0F6E56', bg:'#E1F5EE', pct:20},
+    {label:'Part 2', color:'#185FA5', bg:'#E6F1FB', pct:10},
+  ];
+  const bars = parts.map((p,i) => {
+    const y = 60 + i*48;
+    return `<g>
+      <text x="20" y="${y+18}" font-size="11" font-family="var(--font-sans,sans-serif)" fill="${p.color}" font-weight="500">${p.label}</text>
+      <rect x="80" y="${y+6}" width="170" height="20" rx="4" fill="${p.bg}" stroke="${p.color}" stroke-width="0.5" opacity="0.5"/>
+      <rect x="80" y="${y+6}" width="${Math.round(170*p.pct/100)}" height="20" rx="4" fill="${p.color}" opacity="0.7" class="pbar"/>
+      <text x="${80+Math.round(170*p.pct/100)+6}" y="${y+18}" font-size="10" font-family="var(--font-sans,sans-serif)" fill="${p.color}" dominant-baseline="central">${p.pct}%</text>
+    </g>`;
+  }).join('');
+
+  return mkSvg(210, `${DEFS}
+    <text x="140" y="24" text-anchor="middle" font-size="11" font-family="var(--font-sans,sans-serif)" fill="var(--color-text-secondary)">murmur2(key) % numPartitions</text>
+    <rect x="10" y="38" width="260" height="1" fill="var(--color-border-tertiary)"/>
+    ${bars}
+    <text x="140" y="198" text-anchor="middle" font-size="11" font-family="var(--font-sans,sans-serif)" fill="var(--color-text-tertiary)">key="user-42" always → Part 0</text>
+  `);
+}
+
+function vizBuffer() {
+  const dots = Array.from({length:5},(_, i)=>{
+    const colors=['#534AB7','#0F6E56','#185FA5','#993C1D','#534AB7'];
+    return `<circle cx="${55+i*36}" cy="100" r="12" fill="${colors[i]}" opacity="${0.2+i*0.15}" class="bdot" style="animation-delay:${i*0.15}s"/>
+      <text x="${55+i*36}" y="100" text-anchor="middle" dominant-baseline="central" font-size="9" font-family="var(--font-sans,sans-serif)" fill="#fff" font-weight="500">R${i+1}</text>`;
+  }).join('');
+
+  return mkSvg(200, `${DEFS}
+    <text x="140" y="22" text-anchor="middle" font-size="11" font-family="var(--font-sans,sans-serif)" fill="var(--color-text-secondary)">RecordAccumulator — per-partition queue</text>
+    ${rect(20, 36, 240, 130, '', 8, 'var(--color-background-secondary)')}
+    <text x="30" y="58" font-size="10" font-family="var(--font-sans,sans-serif)" fill="var(--color-text-tertiary)">Partition 0</text>
+    ${dots}
+    <rect x="28" y="75" width="${Math.round(240*0.7)-16}" height="50" rx="6" fill="#534AB7" opacity="0.08" stroke="#534AB7" stroke-width="0.5"/>
+    <text x="30" y="145" font-size="10" font-family="var(--font-sans,sans-serif)" fill="var(--color-text-tertiary)">buffer.memory: 32 MB</text>
+    <rect x="20" y="155" width="240" height="8" rx="4" fill="var(--color-background-tertiary)" stroke="var(--color-border-tertiary)" stroke-width="0.5"/>
+    <rect x="20" y="155" width="168" height="8" rx="4" fill="#534AB7" opacity="0.55"/>
+    <text x="200" y="160" font-size="10" font-family="var(--font-sans,sans-serif)" fill="#534AB7" dominant-baseline="central">70%</text>
+  `);
+}
+
+function vizBatch() {
+  const msgs = Array.from({length:4},(_, i)=>{
+    const colors=['#534AB7','#0F6E56','#185FA5','#993C1D'];
+    const x=38+i*52;
+    return `<g class="rec" style="animation-delay:${i*0.1}s">
+      ${rect(x, 60, 42, 50, '', 4, colors[i]+'22')}
+      <text x="${x+21}" y="78" text-anchor="middle" dominant-baseline="central" font-size="9" font-family="var(--font-sans,sans-serif)" fill="${colors[i]}" font-weight="500">Rec ${i+1}</text>
+      <rect x="${x+4}" y="88" width="34" height="4" rx="2" fill="${colors[i]}" opacity="0.5"/>
+      <rect x="${x+4}" y="96" width="${14+i*4}" height="4" rx="2" fill="${colors[i]}" opacity="0.35"/>
+    </g>`;
+  }).join('');
+
+  return mkSvg(200, `${DEFS}
+    <text x="140" y="22" text-anchor="middle" font-size="11" font-family="var(--font-sans,sans-serif)" fill="var(--color-text-secondary)">ProducerBatch — batched for wire efficiency</text>
+    <g class="brace-appear">
+      <rect x="24" y="44" width="232" height="78" rx="8" fill="none" stroke="#534AB7" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>
+      <text x="140" y="40" text-anchor="middle" font-size="10" font-family="var(--font-sans,sans-serif)" fill="#534AB7">batch.size = 16 KB · linger.ms = 5</text>
+    </g>
+    ${msgs}
+    <text x="140" y="158" text-anchor="middle" font-size="11" font-family="var(--font-sans,sans-serif)" fill="var(--color-text-secondary)">compress ↓</text>
+    <rect x="60" y="168" width="160" height="24" rx="6" fill="#0F6E56" opacity="0.15" stroke="#0F6E56" stroke-width="0.5"/>
+    <text x="140" y="180" text-anchor="middle" dominant-baseline="central" font-size="11" font-family="var(--font-sans,sans-serif)" fill="#0F6E56">compressed batch · snappy</text>
+  `);
+}
+
+function vizSend() {
+  return mkSvg(200, `${DEFS}
+    <text x="140" y="20" text-anchor="middle" font-size="11" font-family="var(--font-sans,sans-serif)" fill="var(--color-text-secondary)">Sender thread → NetworkClient → Broker</text>
+    ${rect(10, 32, 80, 52, '', 6, '#EEEDFE')}
+    <text x="50" y="50" text-anchor="middle" dominant-baseline="central" font-size="11" font-family="var(--font-sans,sans-serif)" fill="#3C3489" font-weight="500">Sender</text>
+    <text x="50" y="68" text-anchor="middle" dominant-baseline="central" font-size="10" font-family="var(--font-sans,sans-serif)" fill="#534AB7">thread</text>
+
+    <path class="flowline" d="M92 58 L136 58" fill="none" stroke="#534AB7" stroke-width="1.5" marker-end="url(#arh)"/>
+
+    ${rect(138, 32, 80, 52, '', 6, '#E1F5EE')}
+    <text x="178" y="50" text-anchor="middle" dominant-baseline="central" font-size="11" font-family="var(--font-sans,sans-serif)" fill="#085041" font-weight="500">Network</text>
+    <text x="178" y="68" text-anchor="middle" dominant-baseline="central" font-size="10" font-family="var(--font-sans,sans-serif)" fill="#0F6E56">Client</text>
+
+    <path class="flowline" d="M220 58 L248 58" fill="none" stroke="#0F6E56" stroke-width="1.5" marker-end="url(#arh)"/>
+
+    ${rect(250, 32, 22, 52, '', 4, '#D3D1C7')}
+    <text x="261" y="58" text-anchor="middle" dominant-baseline="central" font-size="9" font-family="var(--font-sans,sans-serif)" fill="#5F5E5A" font-weight="500">B1</text>
+
+    <text x="140" y="108" text-anchor="middle" font-size="11" font-family="var(--font-sans,sans-serif)" fill="var(--color-text-tertiary)">max.in.flight.requests.per.connection</text>
+
+    <g>
+      ${[0,1,2,3,4].map((i)=>`
+        <rect x="${40+i*38}" y="120" width="30" height="22" rx="4" fill="#534AB7" opacity="${0.15+i*0.12}" stroke="#534AB7" stroke-width="0.5"/>
+        <text x="${55+i*38}" y="131" text-anchor="middle" dominant-baseline="central" font-size="9" font-family="var(--font-sans,sans-serif)" fill="#534AB7">req${i+1}</text>
+      `).join('')}
+      <text x="140" y="157" text-anchor="middle" font-size="10" font-family="var(--font-sans,sans-serif)" fill="var(--color-text-tertiary)">5 in-flight requests pipelined</text>
+    </g>
+
+    <path class="flowline" d="M140 162 L140 182" fill="none" stroke="#534AB7" stroke-width="1" marker-end="url(#arh)"/>
+    <text x="140" y="192" text-anchor="middle" dominant-baseline="central" font-size="10" font-family="var(--font-sans,sans-serif)" fill="var(--color-text-secondary)">TCP connection per broker</text>
+  `);
+}
+
+function vizRetry() {
+  return mkSvg(210, `${DEFS}
+    ${rect(80, 14, 120, 38, '', 6, '#FAECE7')}
+    <text x="140" y="28" text-anchor="middle" dominant-baseline="central" font-size="12" font-family="var(--font-sans,sans-serif)" fill="#993C1D" font-weight="500">Send batch</text>
+    <text x="140" y="44" text-anchor="middle" dominant-baseline="central" font-size="10" font-family="var(--font-sans,sans-serif)" fill="#D85A30">→ Broker</text>
+
+    <path d="M140 54 L140 80" fill="none" stroke="var(--color-border-secondary)" stroke-width="1" marker-end="url(#arh)"/>
+
+    ${rect(80, 82, 120, 34, '', 6, '#FCEBEB')}
+    <text x="140" y="99" text-anchor="middle" dominant-baseline="central" font-size="11" font-family="var(--font-sans,sans-serif)" fill="#A32D2D">Error / timeout</text>
+
+    <path d="M80 99 L40 99 L40 33 L78 33" fill="none" stroke="#E24B4A" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arh)"/>
+    <text x="12" y="66" text-anchor="middle" dominant-baseline="central" font-size="10" font-family="var(--font-sans,sans-serif)" fill="#E24B4A" class="retry-num">retry</text>
+
+    <path d="M200 99 L240 99 L240 142" fill="none" stroke="#0F6E56" stroke-width="1" marker-end="url(#arh)"/>
+    <text x="220" y="126" text-anchor="start" dominant-baseline="central" font-size="10" font-family="var(--font-sans,sans-serif)" fill="#0F6E56">success</text>
+
+    ${rect(80, 144, 120, 34, '', 6, '#E1F5EE')}
+    <text x="140" y="161" text-anchor="middle" dominant-baseline="central" font-size="11" font-family="var(--font-sans,sans-serif)" fill="#085041">Ack received</text>
+
+    <text x="140" y="198" text-anchor="middle" font-size="10" font-family="var(--font-sans,sans-serif)" fill="var(--color-text-tertiary)">PID + seq no. prevents duplicates</text>
+  `);
+}
+
+function vizAck() {
+  const modes = [
+    {label:'acks=0', desc:'no wait', icon:'⚡', color:'#A32D2D', bg:'#FCEBEB', x:14},
+    {label:'acks=1', desc:'leader', icon:'◑', color:'#854F0B', bg:'#FAEEDA', x:104},
+    {label:'acks=all',desc:'all ISR', icon:'✓', color:'#085041', bg:'#E1F5EE', x:194},
+  ];
+
+  const cards = modes.map((m,i) => `
+    <g class="rec" style="animation-delay:${i*0.12}s">
+      ${rect(m.x, 30, 82, 100, '', 6, m.bg)}
+      <text x="${m.x+41}" y="58" text-anchor="middle" dominant-baseline="central" font-size="20" font-family="var(--font-sans,sans-serif)" fill="${m.color}">${m.icon}</text>
+      <text x="${m.x+41}" y="84" text-anchor="middle" dominant-baseline="central" font-size="12" font-family="var(--font-sans,sans-serif)" fill="${m.color}" font-weight="500">${m.label}</text>
+      <text x="${m.x+41}" y="100" text-anchor="middle" dominant-baseline="central" font-size="10" font-family="var(--font-sans,sans-serif)" fill="${m.color}">${m.desc}</text>
+      <text x="${m.x+41}" y="118" text-anchor="middle" dominant-baseline="central" font-size="9" font-family="var(--font-sans,sans-serif)" fill="${m.color}" opacity="0.7">${i===0?'fastest':i===1?'balanced':'safest'}</text>
+    </g>
+  `).join('');
+
+  return mkSvg(200, `${DEFS}
+    <text x="140" y="18" text-anchor="middle" font-size="11" font-family="var(--font-sans,sans-serif)" fill="var(--color-text-secondary)">acks setting controls durability guarantee</text>
+    ${cards}
+    <g class="ack-appear" style="animation-delay:0.4s">
+      ${rect(14, 145, 262, 44, '', 6, '#EEEDFE')}
+      <text x="145" y="160" text-anchor="middle" dominant-baseline="central" font-size="11" font-family="var(--font-sans,sans-serif)" fill="#3C3489" font-weight="500">Callback / Future.get()</text>
+      <text x="145" y="178" text-anchor="middle" dominant-baseline="central" font-size="10" font-family="var(--font-sans,sans-serif)" fill="#534AB7">RecordMetadata: topic, partition, offset</text>
+    </g>
+  `);
+}
+
+/* ── render ───────────────────────────────────── */
+function render() {
+  const s = STAGES[current];
+  // dots
+  const dotsEl = document.getElementById('dots');
+  dotsEl.innerHTML = STAGES.map((_, i) => {
+    const state = i < current ? 'done' : i === current ? 'active' : '';
+    const lineState = i < current ? 'done' : '';
+    return `<div class="dot-item">
+      <div class="dot ${state}" onclick="goTo(${i})">${i < current ? '✓' : i+1}</div>
+      ${i < STAGES.length-1 ? `<div class="dot-line ${lineState}"></div>` : ''}
+    </div>`;
+  }).join('');
+
+  // card
+  const info = s.info.map((it, i) =>
+    `<div class="info-item" style="animation-delay:${0.1+i*0.08}s">
+      <div class="info-dot"></div>
+      <div><span class="info-key">${it.key}:</span>${it.detail}</div>
+    </div>`
+  ).join('');
+
+  document.getElementById('stage-card').innerHTML = `
+    <div class="stage-header">
+      <div class="stage-num">${current+1}</div>
+      <div class="stage-titles">
+        <div class="stage-name">${s.name}</div>
+        <div class="stage-sub">${s.sub}</div>
+      </div>
+    </div>
+    <div class="stage-body">
+      <div class="stage-viz">${s.viz()}</div>
+      <div class="stage-info">${info}</div>
+    </div>
+    <div class="nav">
+      <button class="btn-prev" onclick="prev()" ${current===0?'disabled':''}>← Back</button>
+      <span class="nav-label">${current+1} of ${STAGES.length}</span>
+      <button class="btn-next" onclick="next()" ${current===STAGES.length-1?'disabled':''}>Next →</button>
+    </div>
+  `;
+}
+
+function next() { if (current < STAGES.length-1) { current++; render(); } }
+function prev() { if (current > 0) { current--; render(); } }
+function goTo(i) { current = i; render(); }
+
+render();
+</script>
