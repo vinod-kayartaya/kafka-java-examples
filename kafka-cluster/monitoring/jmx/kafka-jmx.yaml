@@ -1,0 +1,119 @@
+lowercaseOutputName: true
+lowercaseOutputLabelNames: true
+
+rules:
+  # -----------------------------
+  # Kafka Server Metrics
+  # -----------------------------
+
+  - pattern: 'kafka.server<type=(.+), name=(.+)PerSec\w*, topic=(.+)><>Count'
+    name: kafka_server_$1_$2_total
+    labels:
+      topic: '$3'
+    type: COUNTER
+
+  - pattern: 'kafka.server<type=(.+), name=(.+)PerSec\w*><>Count'
+    name: kafka_server_$1_$2_total
+    type: COUNTER
+
+  - pattern: 'kafka.server<type=(.+), name=(.+)><>Value'
+    name: kafka_server_$1_$2
+    type: GAUGE
+
+  # -----------------------------
+  # Controller Metrics
+  # -----------------------------
+
+  - pattern: 'kafka.controller<type=(.+), name=(.+)><>Value'
+    name: kafka_controller_$1_$2
+    type: GAUGE
+
+  # -----------------------------
+  # Network Metrics
+  # -----------------------------
+
+  - pattern: 'kafka.network<type=(.+), name=(.+), request=(.+)><>Count'
+    name: kafka_network_$1_$2_total
+    labels:
+      request: '$3'
+    type: COUNTER
+
+  - pattern: 'kafka.network<type=(.+), name=(.+), request=(.+)><>Value'
+    name: kafka_network_$1_$2
+    labels:
+      request: '$3'
+    type: GAUGE
+
+  - pattern: 'kafka.network<type=(.+), name=(.+)><>Value'
+    name: kafka_network_$1_$2
+    type: GAUGE
+
+  # -----------------------------
+  # ReplicaManager Metrics
+  # -----------------------------
+
+  - pattern: 'kafka.server<type=ReplicaManager, name=(.+)><>Value'
+    name: kafka_server_replicamanager_$1
+    type: GAUGE
+
+  # -----------------------------
+  # Request Metrics
+  # -----------------------------
+
+  - pattern: 'kafka.network<type=RequestMetrics, name=(.+), request=(.+)><>Count'
+    name: kafka_network_requestmetrics_$1_total
+    labels:
+      request: '$2'
+    type: COUNTER
+
+  - pattern: 'kafka.network<type=RequestMetrics, name=(.+), request=(.+)><>Mean'
+    name: kafka_network_requestmetrics_$1
+    labels:
+      request: '$2'
+    type: GAUGE
+
+  # -----------------------------
+  # Log Metrics
+  # -----------------------------
+
+  - pattern: 'kafka.log<type=(.+), name=(.+)><>Value'
+    name: kafka_log_$1_$2
+    type: GAUGE
+
+  # -----------------------------
+  # Purgatory Metrics
+  # -----------------------------
+
+  - pattern: 'kafka.server<type=DelayedOperationPurgatory, name=(.+), delayedOperation=(.+)><>Value'
+    name: kafka_server_delayedoperationpurgatory_$1
+    labels:
+      delayedOperation: '$2'
+    type: GAUGE
+
+  # -----------------------------
+  # JVM Metrics
+  # -----------------------------
+
+  - pattern: 'java.lang<type=Memory><HeapMemoryUsage>(used|committed|max)'
+    name: jvm_memory_heap_$1_bytes
+    type: GAUGE
+
+  - pattern: 'java.lang<type=Memory><NonHeapMemoryUsage>(used|committed|max)'
+    name: jvm_memory_nonheap_$1_bytes
+    type: GAUGE
+
+  - pattern: 'java.lang<type=Threading><>(ThreadCount|DaemonThreadCount)'
+    name: jvm_threads_$1
+    type: GAUGE
+
+  - pattern: 'java.lang<type=GarbageCollector, name=(.+)><>CollectionTime'
+    name: jvm_gc_collection_time_ms
+    labels:
+      gc: '$1'
+    type: COUNTER
+
+  - pattern: 'java.lang<type=GarbageCollector, name=(.+)><>CollectionCount'
+    name: jvm_gc_collection_count
+    labels:
+      gc: '$1'
+    type: COUNTER

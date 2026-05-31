@@ -1,0 +1,7 @@
+**/.vscode
+**/target
+**/*.class
+**/*.jar
+**/.DS_Store
+**/*.swp
+**/.github
