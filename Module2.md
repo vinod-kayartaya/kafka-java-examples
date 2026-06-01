@@ -12,7 +12,7 @@ Using our **Payment Processing & Fraud Detection System**, we will learn how con
 
 # Learning Objectives
 
-By the end of this module, participants will be able to:
+By the end of this module, you will be able to:
 
 - Understand Kafka Consumer architecture
 - Explain Consumer Groups

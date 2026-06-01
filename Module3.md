@@ -6,7 +6,7 @@ This module is part of **Day 3 – Kafka Programming + Stream Processing** and f
 
 # Learning Objectives
 
-By the end of this module, participants will be able to:
+By the end of this module, you will be able to:
 
 - Understand why serialization is required in distributed systems
 - Compare JSON, Avro, and Protobuf formats

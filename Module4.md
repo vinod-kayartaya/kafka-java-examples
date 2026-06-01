@@ -10,7 +10,7 @@ In our **Payment Processing & Fraud Detection System**, Kafka Streams will conti
 
 # Learning Objectives
 
-By the end of this module, participants will be able to:
+By the end of this module, you will be able to:
 
 - Understand stream processing fundamentals
 - Differentiate between stateless and stateful processing
@@ -841,4 +841,4 @@ In this module you learned:
 - Real-time fraud detection patterns
 - Building Kafka Streams applications
 
-This module prepares participants for the Day 3 lab where they will implement Kafka Streams-based fraud pattern detection in the Payment Processing & Fraud Detection System.
+This module prepares you for the Day 3 lab where they will implement Kafka Streams-based fraud pattern detection in the Payment Processing & Fraud Detection System.

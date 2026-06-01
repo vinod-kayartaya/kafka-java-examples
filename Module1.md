@@ -2,7 +2,7 @@
 
 ## Module Overview
 
-In this module, participants will learn how Kafka producers work internally, how messages are sent to Kafka brokers, how partition selection occurs, and how Kafka guarantees reliable message delivery through idempotent producers.
+In this module, you will learn how Kafka producers work internally, how messages are sent to Kafka brokers, how partition selection occurs, and how Kafka guarantees reliable message delivery through idempotent producers.
 
 This module forms the foundation for all Kafka applications because every event-driven system starts with producing events. Understanding producer internals helps developers build systems that are scalable, reliable, and performant.
 
@@ -10,7 +10,7 @@ This module forms the foundation for all Kafka applications because every event-
 
 # Learning Objectives
 
-By the end of this module, participants will be able to:
+By the end of this module, you will be able to:
 
 - Understand Kafka Producer Architecture
 - Explain the message lifecycle inside a producer
