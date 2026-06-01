@@ -4,8 +4,6 @@ Kafka Connect is a framework within Apache Kafka that allows you to move data be
 
 In your course outline, Kafka Connect is covered under **Day 4 – Reliability, Scaling & Integration**, focusing on architecture, source connectors, sink connectors, and database integration.
 
----
-
 # Why Kafka Connect?
 
 Without Kafka Connect:
@@ -25,8 +23,6 @@ Kafka → Sink Connector → Database
 ```
 
 No custom application is required.
-
----
 
 # Kafka Connect Architecture
 
@@ -75,8 +71,6 @@ Actual units of work executed by a connector.
 
 One connector may run multiple tasks in parallel.
 
----
-
 # Types of Connectors
 
 ## 1. Source Connector
@@ -95,8 +89,6 @@ JDBC Source Connector
 customer-topic
 ```
 
----
-
 ## 2. Sink Connector
 
 Reads data from Kafka and writes it to an external system.
@@ -112,8 +104,6 @@ JDBC Sink Connector
         v
 PostgreSQL
 ```
-
----
 
 # Standalone vs Distributed Mode
 
@@ -132,8 +122,6 @@ Suitable for:
 - Development
 - Testing
 - Learning
-
----
 
 ## Distributed Mode
 
@@ -155,8 +143,6 @@ Suitable for:
 - Production
 - Fault tolerance
 - Scalability
-
----
 
 # Example: PostgreSQL → Kafka
 
@@ -192,8 +178,6 @@ Resulting Kafka message:
 }
 ```
 
----
-
 # Example: Kafka → PostgreSQL
 
 A payment service produces events:
@@ -216,8 +200,6 @@ JDBC Sink Connector
       v
 payments table
 ```
-
----
 
 # Advantages of Kafka Connect
 
@@ -249,8 +231,6 @@ Hundreds of connectors are available for:
 - Redis
 - Snowflake
 
----
-
 # Kafka Connect vs Custom Java Code
 
 | Feature           | Kafka Connect         | Custom Java            |
@@ -260,8 +240,6 @@ Hundreds of connectors are available for:
 | Scaling           | Built-in              | Manual                 |
 | Offset Management | Automatic             | Manual                 |
 | Best For          | Standard integrations | Complex business logic |
-
----
 
 # Real-World Example (Payment System)
 
@@ -281,8 +259,6 @@ PostgreSQL Database
 ```
 
 This allows every payment event flowing through Kafka to be automatically persisted to the database without writing a consumer application.
-
----
 
 # Key Takeaways
 
