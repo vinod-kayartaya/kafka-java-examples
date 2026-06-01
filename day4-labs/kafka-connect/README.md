@@ -22,6 +22,58 @@ Kafka → Sink Connector → Database
 
 No custom application is required.
 
+# External systems
+
+Kafka Connect is not limited to databases; it can integrate Kafka with virtually any system that stores, processes, or transmits data.
+In the Kafka ecosystem, external systems are divided into Sources (where data comes from) and Sinks (where data goes). Hundreds of pre-built plugins exist to connect Kafka to almost any enterprise technology stack.
+
+## 1. Databases (Relational & NoSQL)
+
+While not the only option, databases are highly popular due to Change Data Capture (CDC) frameworks like Debezium.
+
+- Relational (RDBMS): PostgreSQL, MySQL, Oracle, Microsoft SQL Server, and IBM DB2.
+- NoSQL: MongoDB, Cassandra, ScyllaDB, Couchbase, and Redis.
+- Data Warehouses: Snowflake, Google BigQuery, Amazon Redshift, and Databricks.
+
+## 2. Cloud Object Storage
+
+Kafka Connect is heavily used to archive high-throughput real-time data into cheap, long-term cloud storage for data lakes.
+
+- Amazon S3
+- Google Cloud Storage (GCS)
+- Azure Blob Storage / Azure Data Lake Storage (ADLS)
+
+## 3. Search and Analytics Engines
+
+You can stream data directly into search engines to enable instant indexing and log analytics without writing custom application code.
+
+- Elasticsearch
+- OpenSearch
+- Apache Solr
+- Splunk
+
+## 4. Messaging & Event Streaming Systems
+
+Kafka Connect can bridge different generations of messaging infrastructure or connect distinct cloud ecosystems.
+
+- Traditional MQ: IBM MQ, RabbitMQ, and ActiveMQ (via JMS).
+- Cloud Native: AWS Kinesis, AWS SQS/SNS, Google Cloud Pub/Sub, and Azure Event Hubs.
+- Other Protocols: MQTT (for IoT devices and sensors).
+
+## 5. SaaS and HTTP Applications
+
+You can ingest data from business software or push Kafka events directly to third-party web endpoints.
+
+- SaaS Platforms: Salesforce, ServiceNow, and Jira.
+- Webhooks / HTTP: General REST APIs (allowing you to send data to any HTTP endpoint or poll an external API for changes).
+
+## 6. File Systems & Big Tech Ecosystems
+
+- Legacy Systems: Local file systems (watching directories for new CSV/JSON files) and SFTP/FTP servers.
+- Big Data: Hadoop HDFS and Apache Hive.
+
+If you have a specific system in mind, let me know what external technology you are trying to connect to Kafka and whether you need to read from it or write to it. I can point you toward the exact connector plugin you need!
+
 # Kafka Connect Architecture
 
 ```text
