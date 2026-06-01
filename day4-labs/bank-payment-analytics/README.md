@@ -20,8 +20,6 @@ Unlike a traditional consumer that simply reads and processes messages, Kafka St
 - Windowing
 - Stateful processing
 
----
-
 ## Why Kafka Streams?
 
 Imagine a bank receives payment events:
@@ -60,8 +58,6 @@ Read Event
 Publish New Events
 ```
 
----
-
 ## Kafka Streams Architecture
 
 Using our Payment Analytics example:
@@ -87,8 +83,6 @@ PaymentAnalyticsApp
 
 Kafka Streams consumes one stream and produces many new streams.
 
----
-
 # Core Concepts
 
 ## KStream
@@ -105,8 +99,6 @@ KStream<String, Payment> payments =
 ```
 
 Every payment event becomes part of this stream.
-
----
 
 ## Stateless Operations
 
@@ -137,8 +129,6 @@ Output:
 ₹75000
 ```
 
----
-
 ### Map
 
 Transform events.
@@ -162,8 +152,6 @@ Output:
 Double Amount
 ```
 
----
-
 ## Stateful Operations
 
 These operations remember previous events.
@@ -177,8 +165,6 @@ Examples:
 - Joins
 
 State is stored locally in Kafka Streams State Stores.
-
----
 
 # Grouping
 
@@ -203,8 +189,6 @@ C102
 
 Grouped by customer.
 
----
-
 # Aggregation
 
 Count events.
@@ -219,8 +203,6 @@ Result:
 C101 -> 3
 C102 -> 2
 ```
-
----
 
 # Windowing
 
@@ -237,8 +219,6 @@ Instead we ask:
 > How many payments occurred in the last minute?
 
 Windowing solves this problem.
-
----
 
 ## Tumbling Window
 
@@ -262,8 +242,6 @@ Example:
 
 Each event belongs to exactly one window.
 
----
-
 ## Sliding Window
 
 Useful for fraud detection.
@@ -285,8 +263,6 @@ within any 1-minute period?
 ```
 
 Perfect for suspicious activity detection.
-
----
 
 # Example: Payments Per Minute
 
@@ -319,8 +295,6 @@ Published to:
 payments-per-minute
 ```
 
----
-
 # Example: High Value Payments
 
 ```java
@@ -341,8 +315,6 @@ Published to:
 ```text
 high-value-payments
 ```
-
----
 
 # Example: Fraud Detection
 
@@ -383,8 +355,6 @@ Published to:
 fraud-alerts
 ```
 
----
-
 # KStream vs KTable
 
 ## KStream
@@ -399,8 +369,6 @@ P4
 ```
 
 Represents a stream of facts.
-
----
 
 ## KTable
 
@@ -426,8 +394,6 @@ C101 -> 9000
 
 only the latest value.
 
----
-
 # Kafka Streams Advantages
 
 ### Simple
@@ -451,8 +417,6 @@ Processes events as they arrive.
 ### Event-Driven
 
 Produces new events that other services can consume.
-
----
 
 # Running Our Demo
 
@@ -499,8 +463,6 @@ kafka-console-consumer.sh \
 --topic fraud-alerts \
 --from-beginning
 ```
-
----
 
 # Key Takeaway
 
