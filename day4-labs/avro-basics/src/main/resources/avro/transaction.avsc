@@ -1,0 +1,19 @@
+{
+  "type": "record",
+  "name": "Transaction",
+  "namespace": "com.training.kafka.avro.model",
+  "fields": [
+    {
+      "name": "transactionId",
+      "type": "string"
+    },
+    {
+      "name": "customerId",
+      "type": "string"
+    },
+    {
+      "name": "amount",
+      "type": "double"
+    }
+  ]
+}

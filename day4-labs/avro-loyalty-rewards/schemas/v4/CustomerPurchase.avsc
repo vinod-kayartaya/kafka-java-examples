@@ -1,0 +1,33 @@
+{
+  "type": "record",
+  "name": "CustomerPurchase",
+  "namespace": "co.vinod.loyalty.avro.v4",
+
+  "fields": [
+    {
+      "name": "purchaseId",
+      "type": "string"
+    },
+    {
+      "name": "customerId",
+      "type": "string"
+    },
+    {
+      "name": "purchaseAmount",
+      "type": "double"
+    },
+    {
+      "name": "pointsEarned",
+      "type": "int"
+    },
+    {
+      "name": "customerTier",
+      "type": "string",
+      "default": "SILVER"
+    },
+    {
+      "name": "purchaseTimestamp",
+      "type": "long"
+    }
+  ]
+}
