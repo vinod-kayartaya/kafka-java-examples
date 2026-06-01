@@ -587,36 +587,48 @@ function buildCluster() {
     { cls:'broker-2', border:'rgba(63,185,80,0.25)',   hbg:'rgba(63,185,80,0.05)',  hl:'#3fb950', label:'BROKER 2' },
     { cls:'broker-3', border:'rgba(210,168,255,0.25)', hbg:'rgba(210,168,255,0.05)',hl:'#d2a8ff', label:'BROKER 3' },
   ];
+  // replicaMap[broker][partition] = { label, isLeader, replicaIdx }
+  // Partition 0: B0=L(r0), B1=R1(r1), B2=R2(r2)
+  // Partition 1: B1=L(r0), B2=R1(r1), B0=R2(r2)
+  // Partition 2: B2=L(r0), B0=R1(r1), B1=R2(r2)
+  const replicaMap = [
+    { 0:{label:'L', isLeader:true,  replicaIdx:0}, 1:{label:'R2',isLeader:false,replicaIdx:2}, 2:{label:'R1',isLeader:false,replicaIdx:1} },
+    { 0:{label:'R1',isLeader:false, replicaIdx:1}, 1:{label:'L', isLeader:true, replicaIdx:0}, 2:{label:'R2',isLeader:false,replicaIdx:2} },
+    { 0:{label:'R2',isLeader:false, replicaIdx:2}, 1:{label:'R1',isLeader:false,replicaIdx:1}, 2:{label:'L', isLeader:true, replicaIdx:0} },
+  ];
+
   for (let b = 0; b < 3; b++) {
     const bd = bDefs[b];
     const broker = document.createElement('div');
     broker.className = `broker ${bd.cls}`;
     broker.id = `broker-${b}`;
     broker.style.borderColor = bd.border;
+
+    const partitionsHTML = [0,1,2].map(p => {
+      const pd   = pDefs[p];
+      const role = replicaMap[b][p];
+      return `
+        <div class="partition ${pd.cls}" id="broker-${b}-part-${p}" style="border-color:${pd.border}">
+          <div class="partition-header" style="background:${pd.hbg};color:${pd.hl}">
+            <span>${pd.name} ${role.isLeader ? '★' : ''}</span>
+            <span class="offset-badge" id="off-b${b}-p${p}">off:0</span>
+          </div>
+          <div class="partition-body">
+            <div class="replica-row">
+              <span class="replica-lbl">${role.label}:</span>
+              <div class="replica ${role.isLeader ? 'leader' : ''}" id="rep-b${b}-p${p}-r${role.replicaIdx}"></div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
     broker.innerHTML = `
       <div class="broker-header" style="background:${bd.hbg};color:${bd.hl}">
         ${bd.label} <div class="broker-led"></div>
       </div>
       <div class="broker-body">
         <div class="topic-header">topic: events</div>
-        ${[0,1,2].map(p => {
-          const pd = pDefs[p];
-          const isLeader = (b === p);
-          return `
-          <div class="partition ${pd.cls}" id="broker-${b}-part-${p}" style="border-color:${pd.border}">
-            <div class="partition-header" style="background:${pd.hbg};color:${pd.hl}">
-              <span>${pd.name}${isLeader?' ★':''}</span>
-              <span class="offset-badge" id="off-b${b}-p${p}">off:0</span>
-            </div>
-            <div class="partition-body">
-              ${[0,1,2].map(r => `
-                <div class="replica-row">
-                  <span class="replica-lbl">${r===0?'L:':'R'+r+':'}</span>
-                  <div class="replica ${r===0?'leader':''}" id="rep-b${b}-p${p}-r${r}"></div>
-                </div>`).join('')}
-            </div>
-          </div>`;
-        }).join('')}
+        ${partitionsHTML}
       </div>`;
     box.appendChild(broker);
   }
@@ -700,6 +712,17 @@ function selectProducer(i) {
   log(`Selected prod-${i}. Partition: ${msgPartition}, Leader Broker: ${msgLeaderBroker+1}`, msgColor);
 }
 
+// ══ REPLICA TOPOLOGY MAP ═════════════════════════════════════════════════════
+// replicaRoleMap[broker][partition] = replicaIdx used in element ID
+// Partition 0: B0=r0(L), B1=r1(R1), B2=r2(R2)
+// Partition 1: B1=r0(L), B2=r1(R1), B0=r2(R2)
+// Partition 2: B2=r0(L), B0=r1(R1), B1=r2(R2)
+const replicaRoleMap = [
+  { 0:0, 1:2, 2:1 }, // Broker 0
+  { 0:1, 1:0, 2:2 }, // Broker 1
+  { 0:2, 1:1, 2:0 }, // Broker 2
+];
+
 // ══ PHASE CONTROL ════════════════════════════════════════════════════════════
 function handleAction() {
   if (animating) return;
@@ -761,8 +784,8 @@ function runPhase2() {
 
   // Short envelope from broker header to the partition inside it
   spawnEnvelope(brokerEl, partEl, msgColor, msgLabel, 0, () => {
-    // Write to leader replica
-    addToReplica(msgLeaderBroker, msgPartition, 0, msgColor, msgLabel);
+    // Write to leader replica using topology map
+    addToReplica(msgLeaderBroker, msgPartition, replicaRoleMap[msgLeaderBroker][msgPartition], msgColor, msgLabel);
     updateOffset(msgLeaderBroker, msgPartition);
     totalMsgs++;
     setStepState(1, 'done');
@@ -792,10 +815,10 @@ function runPhase3() {
 
     setTimeout(() => {
       spawnEnvelope(leaderEl, followerEl, msgColor, msgLabel, fi === 0 ? -1 : 1, () => {
-        const replicaIdx = fb < msgLeaderBroker ? 1 : 2;
+        const replicaIdx = replicaRoleMap[fb][msgPartition];
         addToReplica(fb, msgPartition, replicaIdx, msgColor, msgLabel);
         updateOffset(fb, msgPartition);
-        log(`[Phase 3] Broker-${msgLeaderBroker+1} → Broker-${fb+1} (follower replica ${replicaIdx})`, msgColor);
+        log(`[Phase 3] Broker-${msgLeaderBroker+1} → Broker-${fb+1} (follower replica idx ${replicaIdx})`, msgColor);
         done++;
         if (done === followers.length) {
           setStepState(2, 'done');
