@@ -2,8 +2,6 @@
 
 Kafka Connect is a framework within Apache Kafka that allows you to move data between Kafka and external systems without writing custom producer or consumer code.
 
-In your course outline, Kafka Connect is covered under **Day 4 – Reliability, Scaling & Integration**, focusing on architecture, source connectors, sink connectors, and database integration.
-
 # Why Kafka Connect?
 
 Without Kafka Connect:
