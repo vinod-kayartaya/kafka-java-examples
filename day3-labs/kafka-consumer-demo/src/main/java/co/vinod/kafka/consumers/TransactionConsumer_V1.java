@@ -15,17 +15,19 @@ public class TransactionConsumer_V1 {
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, KafkaConfig.get("auto.offset.reset"));
 
-        KafkaConsumer<String, String> c = new KafkaConsumer<>(props);
+        try (KafkaConsumer<String, String> c = new KafkaConsumer<>(props);) {
 
-        c.subscribe(List.of(KafkaConfig.get("topic.name")));
+            c.subscribe(List.of(KafkaConfig.get("topic.name")));
 
-        System.out.println("Consumer V1 started...");
-        while (true) {
-            ConsumerRecords<String, String> rs = c.poll(Duration.ofSeconds(1));
-            System.out.println("Polled " + rs.count() + " records");
-            for (ConsumerRecord<String, String> r : rs) {
-                System.out.printf("Partition=%d Offset=%d Value=%s%n", r.partition(), r.offset(), r.value());
+            System.out.println("Consumer V1 started...");
+            while (true) {
+                ConsumerRecords<String, String> rs = c.poll(Duration.ofSeconds(1));
+                System.out.println("Polled " + rs.count() + " records");
+                for (ConsumerRecord<String, String> r : rs) {
+                    System.out.printf("Partition=%d Offset=%d Value=%s%n", r.partition(), r.offset(), r.value());
+                }
             }
         }
+
     }
 }
