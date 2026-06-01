@@ -93,7 +93,7 @@ KafkaConsumer<String, String> consumer =
     new KafkaConsumer<>(props);
 
 consumer.subscribe(
-    List.of("payment-transactions"));
+    List.of("transactions"));
 
 while(true)
 {
@@ -117,7 +117,7 @@ Suppose:
 
 ```text
 Topic:
-payment-transactions
+transactions
 
 Messages:
 1
@@ -167,7 +167,7 @@ A partition cannot be actively consumed by multiple consumers within the same gr
 Topic:
 
 ```text
-payment-transactions
+transactions
 
 Partitions:
 P0
@@ -751,7 +751,7 @@ Monitor:
 Topic:
 
 ```text
-payment-transactions
+transactions
 ```
 
 Partitions:
