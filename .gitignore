@@ -8,7 +8,6 @@
 **/.github
 
 day5-labs
-day4-labs/simple-kafka-stream-demo
 
 **/.venv
 **/__pycache__
